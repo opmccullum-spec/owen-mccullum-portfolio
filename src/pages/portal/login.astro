@@ -1,0 +1,124 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { createSupabaseServerClient } from "../../lib/supabase/server";
+
+// Already logged in? Skip straight to the portal.
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+if (user) {
+  return Astro.redirect("/portal");
+}
+
+const error = Astro.url.searchParams.get("error");
+const errorMessage =
+  error === "auth_failed"
+    ? "That login link didn't work — it may have expired. Request a new one below."
+    : error === "missing_profile"
+      ? "Something went wrong setting up your account. Please try again, or contact Owen directly."
+      : null;
+---
+
+<BaseLayout title="Client Login — Owen McCullum" description="Log in to the Owen McCullum client portal.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Client Portal</p>
+      <h1 class="page-title">Log in to your portal.</h1>
+      <p class="page-lede">
+        Enter the email your session was booked under. We'll send a one-time
+        login link — no password needed.
+      </p>
+    </header>
+
+    <form class="inquire reveal" id="login-form" novalidate>
+      <p class="inq-eyebrow">Log in</p>
+
+      <div class="inq-field">
+        <label for="login-email">Email</label>
+        <input id="login-email" name="email" type="email" autocomplete="email" required />
+        <span class="inq-err" aria-live="polite"></span>
+      </div>
+
+      <button class="inq-submit" type="submit">Send login link</button>
+
+      {errorMessage && (
+        <p class="inq-feedback inq-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+      <p class="inq-feedback inq-sent" role="status" hidden>
+        Check your inbox — we've sent a login link to your email. It's good for one login and expires shortly.
+      </p>
+      <p class="inq-feedback inq-error inq-error--submit" role="alert" hidden>
+        Something went wrong sending that link. Please try again in a moment.
+      </p>
+
+      <p class="inq-note">
+        Not a client yet? <a href="/contact">Get in touch</a> to book a session.
+      </p>
+    </form>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<script>
+  function initLogin() {
+    const form = document.querySelector<HTMLFormElement>("#login-form");
+    if (!form || form.dataset.init) return;
+    form.dataset.init = "1";
+
+    const email = form.querySelector<HTMLInputElement>("[name=email]")!;
+    const submit = form.querySelector<HTMLButtonElement>(".inq-submit")!;
+    const sent = form.querySelector<HTMLElement>(".inq-sent")!;
+    const errorBox = form.querySelector<HTMLElement>(".inq-error--submit")!;
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+
+      if (!emailRe.test(email.value.trim())) {
+        const wrap = email.closest(".inq-field")!;
+        wrap.classList.add("invalid");
+        wrap.querySelector(".inq-err")!.textContent = "Please enter a valid email.";
+        email.focus();
+        return;
+      }
+
+      const original = submit.textContent;
+      submit.disabled = true;
+      submit.textContent = "Sending…";
+
+      try {
+        const res = await fetch("/api/auth/send-magic-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.value.trim() }),
+        });
+        if (!res.ok) throw new Error("request failed");
+
+        form
+          .querySelectorAll(".inq-field, .inq-submit, .inq-note")
+          .forEach((el) => ((el as HTMLElement).hidden = true));
+        sent.hidden = false;
+      } catch {
+        errorBox.hidden = false;
+        submit.disabled = false;
+        submit.textContent = original;
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initLogin, { once: true });
+  } else {
+    initLogin();
+  }
+  document.addEventListener("astro:page-load", initLogin);
+</script>

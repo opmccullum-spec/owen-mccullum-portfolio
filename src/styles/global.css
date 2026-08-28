@@ -1815,6 +1815,38 @@ html.js .wordmark.wm-done .wm-l {
 }
 
 /* ----------------------------------------------------------------------------
+   Client portal — reuses .page-head, .inq-*, and .contact-* above; this is
+   just the little bit that's new (the sign-out row).
+---------------------------------------------------------------------------- */
+.portal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.portal-signout {
+  flex: none;
+}
+.portal-signout-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+  transition: text-decoration-color 0.25s ease;
+}
+.portal-signout-btn:hover {
+  text-decoration-color: var(--ink);
+}
+@media (max-width: 640px) {
+  .portal-head {
+    flex-direction: column;
+  }
+}
+
+/* ----------------------------------------------------------------------------
    Film grain — subtle documentary texture over the browsing experience.
    Sits below the lightbox (z 100) so inspecting a print stays clean.
 ---------------------------------------------------------------------------- */

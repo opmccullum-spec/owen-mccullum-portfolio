@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { requireAdmin } from "../../lib/auth";
+import { supabaseAdmin } from "../../lib/supabase/admin";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+// Admin-only view of everyone who has logged into the portal.
+const { data: clients } = await supabaseAdmin
+  .from("profiles")
+  .select("*")
+  .eq("is_admin", false)
+  .order("created_at", { ascending: false });
+---
+
+<BaseLayout title="Admin — Owen McCullum" description="Owen's client portal admin dashboard.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal portal-head">
+      <div>
+        <p class="page-eyebrow">Admin</p>
+        <h1 class="page-title">Clients</h1>
+        <p class="page-lede">
+          Everyone who has logged into the portal. Invoicing, contracts, and
+          booking management for each client will build out here next.
+        </p>
+      </div>
+      <form method="POST" action="/api/auth/signout" class="portal-signout">
+        <button type="submit" class="inq-note portal-signout-btn">Sign out</button>
+      </form>
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/portal">← Back to your own portal</a></p>
+
+    {!clients?.length ? (
+      <p class="reveal">No clients have logged in yet.</p>
+    ) : (
+      <div class="contact-grid reveal">
+        {clients.map((client) => (
+          <div class="contact-block">
+            <p class="ck">{new Date(client.created_at).toLocaleDateString()}</p>
+            <p class="big">{client.full_name || client.email}</p>
+            <p>{client.email}</p>
+          </div>
+        ))}
+      </div>
+    )}
+  </main>
+  <Footer />
+</BaseLayout>

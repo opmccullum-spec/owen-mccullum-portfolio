@@ -1,0 +1,55 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { requireUser } from "../../lib/auth";
+
+const auth = await requireUser(Astro);
+if (auth instanceof Response) return auth;
+const { user, profile } = auth;
+
+const displayName = profile.full_name || user.email;
+---
+
+<BaseLayout title="Your Portal — Owen McCullum" description="Your client portal — invoices, contracts, and scheduling.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal portal-head">
+      <div>
+        <p class="page-eyebrow">Client Portal</p>
+        <h1 class="page-title">Welcome, {displayName}.</h1>
+        <p class="page-lede">
+          Invoices, contracts, and session scheduling will show up here as
+          Owen sends them your way.
+        </p>
+      </div>
+      <form method="POST" action="/api/auth/signout" class="portal-signout">
+        <button type="submit" class="inq-note portal-signout-btn">Sign out</button>
+      </form>
+    </header>
+
+    {profile.is_admin && (
+      <p class="inq-note reveal" style="margin-bottom: 40px;">
+        You're an admin. <a href="/admin">Go to the admin dashboard →</a>
+      </p>
+    )}
+
+    <div class="contact-grid">
+      <div class="contact-block reveal">
+        <p class="ck">Invoices</p>
+        <p>Nothing yet — invoices Owen sends you will show up here.</p>
+      </div>
+      <div class="contact-block reveal" style="--d:80ms">
+        <p class="ck">Contracts</p>
+        <p>Nothing yet — contracts to review and sign will show up here.</p>
+      </div>
+      <div class="contact-block reveal" style="--d:160ms">
+        <p class="ck">Upcoming sessions</p>
+        <p>Nothing booked yet.</p>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
