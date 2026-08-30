@@ -113,6 +113,27 @@ drop policy if exists "bookings: read own rows" on public.bookings;
 create policy "bookings: read own rows" on public.bookings
   for select using (client_id = auth.uid());
 
+-- ── permissions ─────────────────────────────────────────────────────────
+-- Row Level Security controls WHICH rows a role can see; it doesn't grant
+-- table access in the first place. Tables created through Supabase's Table
+-- Editor UI get these grants automatically — tables created via raw SQL
+-- (like this file) don't, so without this block every query (including
+-- from the service_role key, which bypasses RLS but still needs the
+-- underlying table grant) fails with "permission denied for table ...".
+grant usage on schema public to authenticated, service_role;
+
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.profiles to service_role;
+
+grant select on public.invoices to authenticated;
+grant select, insert, update, delete on public.invoices to service_role;
+
+grant select on public.contracts to authenticated;
+grant select, insert, update, delete on public.contracts to service_role;
+
+grant select on public.bookings to authenticated;
+grant select, insert, update, delete on public.bookings to service_role;
+
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your
 -- own email (that first login is what creates your profiles row):

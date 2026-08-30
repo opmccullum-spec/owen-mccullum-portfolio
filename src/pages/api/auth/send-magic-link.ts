@@ -33,7 +33,9 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
   });
 
   if (error) {
-    // Don't leak whether an account exists or Supabase-specific error detail.
+    // Logged server-side only — the response to the browser stays generic
+    // so we don't leak whether an account exists or Supabase-specific detail.
+    console.error("signInWithOtp failed:", error.status, error.code, error.message);
     return new Response(JSON.stringify({ ok: false, error: "send_failed" }), { status: 502 });
   }
 

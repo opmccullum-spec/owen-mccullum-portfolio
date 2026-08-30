@@ -6,15 +6,6 @@ import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 
-// Already logged in? Skip straight to the portal.
-const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
-const {
-  data: { user },
-} = await supabase.auth.getUser();
-if (user) {
-  return Astro.redirect("/portal");
-}
-
 const error = Astro.url.searchParams.get("error");
 const errorMessage =
   error === "auth_failed"
@@ -22,6 +13,17 @@ const errorMessage =
     : error === "missing_profile"
       ? "Something went wrong setting up your account. Please try again, or contact Owen directly."
       : null;
+
+// Already logged in? Skip straight to the portal — unless /portal just
+// bounced back here with missing_profile, which would otherwise bounce
+// straight back to /portal and loop forever.
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+if (user && error !== "missing_profile") {
+  return Astro.redirect("/portal");
+}
 ---
 
 <BaseLayout title="Client Login — Owen McCullum" description="Log in to the Owen McCullum client portal.">
@@ -39,27 +41,35 @@ const errorMessage =
     <form class="inquire reveal" id="login-form" novalidate>
       <p class="inq-eyebrow">Log in</p>
 
-      <div class="inq-field">
+      <div class="inq-field inq-initial">
         <label for="login-email">Email</label>
         <input id="login-email" name="email" type="email" autocomplete="email" required />
         <span class="inq-err" aria-live="polite"></span>
       </div>
 
-      <button class="inq-submit" type="submit">Send login link</button>
+      <button class="inq-submit inq-initial" type="submit">Send login link</button>
 
       {errorMessage && (
         <p class="inq-feedback inq-error" role="alert">
           {errorMessage}
         </p>
       )}
-      <p class="inq-feedback inq-sent" role="status" hidden>
-        Check your inbox — we've sent a login link to your email. It's good for one login and expires shortly.
-      </p>
+      <div class="inq-sent" hidden>
+        <p class="inq-feedback" role="status">
+          Check your inbox — we've sent a login link to your email.
+        </p>
+        <div class="inq-field" style="margin-top: 20px;">
+          <label for="login-code">Link not working? Enter the code from that email instead</label>
+          <input id="login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" />
+          <span class="inq-err" aria-live="polite"></span>
+        </div>
+        <button class="inq-submit inq-verify" type="button">Verify code</button>
+      </div>
       <p class="inq-feedback inq-error inq-error--submit" role="alert" hidden>
         Something went wrong sending that link. Please try again in a moment.
       </p>
 
-      <p class="inq-note">
+      <p class="inq-note inq-initial">
         Not a client yet? <a href="/contact">Get in touch</a> to book a session.
       </p>
     </form>
@@ -77,6 +87,8 @@ const errorMessage =
     const submit = form.querySelector<HTMLButtonElement>(".inq-submit")!;
     const sent = form.querySelector<HTMLElement>(".inq-sent")!;
     const errorBox = form.querySelector<HTMLElement>(".inq-error--submit")!;
+    const code = form.querySelector<HTMLInputElement>("[name=code]")!;
+    const verifyBtn = form.querySelector<HTMLButtonElement>(".inq-verify")!;
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     form.addEventListener("submit", async (e) => {
@@ -104,13 +116,44 @@ const errorMessage =
         if (!res.ok) throw new Error("request failed");
 
         form
-          .querySelectorAll(".inq-field, .inq-submit, .inq-note")
+          .querySelectorAll(".inq-initial")
           .forEach((el) => ((el as HTMLElement).hidden = true));
         sent.hidden = false;
       } catch {
         errorBox.hidden = false;
         submit.disabled = false;
         submit.textContent = original;
+      }
+    });
+
+    verifyBtn.addEventListener("click", async () => {
+      const wrap = code.closest(".inq-field")!;
+      const value = code.value.trim();
+      if (!/^\d{6,8}$/.test(value)) {
+        wrap.classList.add("invalid");
+        wrap.querySelector(".inq-err")!.textContent = "Enter the code exactly as it appears in the email.";
+        code.focus();
+        return;
+      }
+      wrap.classList.remove("invalid");
+
+      const original = verifyBtn.textContent;
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = "Verifying…";
+
+      try {
+        const res = await fetch("/api/auth/verify-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.value.trim(), token: value }),
+        });
+        if (!res.ok) throw new Error("verify failed");
+        window.location.href = "/portal";
+      } catch {
+        wrap.classList.add("invalid");
+        wrap.querySelector(".inq-err")!.textContent = "That code didn't work — check it and try again.";
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = original;
       }
     });
   }
