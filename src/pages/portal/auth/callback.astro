@@ -1,0 +1,19 @@
+---
+export const prerender = false;
+
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { ensureProfile } from "../../../lib/supabase/ensureProfile";
+
+const code = Astro.url.searchParams.get("code");
+
+if (code) {
+  const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  if (!error && data.user) {
+    await ensureProfile(data.user);
+    return Astro.redirect("/portal");
+  }
+}
+
+return Astro.redirect("/portal/login?error=auth_failed");
+---
