@@ -8,9 +8,19 @@ import { requireUser } from "../../lib/auth";
 
 const auth = await requireUser(Astro);
 if (auth instanceof Response) return auth;
-const { user, profile } = auth;
+const { supabase, user, profile } = auth;
 
 const displayName = profile.full_name || user.email;
+
+// RLS already limits this to the logged-in client's own rows.
+const { data: invoices } = await supabase
+  .from("invoices")
+  .select("*")
+  .order("created_at", { ascending: false });
+
+function formatAmount(cents: number) {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
 ---
 
 <BaseLayout title="Your Portal — Owen McCullum" description="Your client portal — invoices, contracts, and scheduling.">
@@ -39,7 +49,23 @@ const displayName = profile.full_name || user.email;
     <div class="contact-grid">
       <div class="contact-block reveal">
         <p class="ck">Invoices</p>
-        <p>Nothing yet — invoices Owen sends you will show up here.</p>
+        {!invoices?.length ? (
+          <p>Nothing yet — invoices Owen sends you will show up here.</p>
+        ) : (
+          invoices.map((invoice) => (
+            <p>
+              {invoice.description} — <strong>{formatAmount(invoice.amount_cents)}</strong> ({invoice.status})
+              {invoice.status !== "paid" && invoice.hosted_invoice_url && (
+                <>
+                  {" "}
+                  <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener">
+                    Pay now →
+                  </a>
+                </>
+              )}
+            </p>
+          ))
+        )}
       </div>
       <div class="contact-block reveal" style="--d:80ms">
         <p class="ck">Contracts</p>

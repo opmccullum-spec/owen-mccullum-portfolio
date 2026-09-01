@@ -16,6 +16,19 @@ const { data: clients } = await supabaseAdmin
   .select("*")
   .eq("is_admin", false)
   .order("created_at", { ascending: false });
+
+const { data: invoices } = await supabaseAdmin
+  .from("invoices")
+  .select("*, profiles(email, full_name)")
+  .order("created_at", { ascending: false });
+
+const invoiced = Astro.url.searchParams.get("invoiced");
+const emailed = Astro.url.searchParams.get("emailed") !== "0";
+const invoiceUrl = Astro.url.searchParams.get("url");
+
+function formatAmount(cents: number) {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
 ---
 
 <BaseLayout title="Admin — Owen McCullum" description="Owen's client portal admin dashboard.">
@@ -26,8 +39,8 @@ const { data: clients } = await supabaseAdmin
         <p class="page-eyebrow">Admin</p>
         <h1 class="page-title">Clients</h1>
         <p class="page-lede">
-          Everyone who has logged into the portal. Invoicing, contracts, and
-          booking management for each client will build out here next.
+          Everyone who has logged into the portal, plus every invoice sent
+          so far. Contract and booking management will build out here next.
         </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
@@ -35,7 +48,24 @@ const { data: clients } = await supabaseAdmin
       </form>
     </header>
 
-    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/portal">← Back to your own portal</a></p>
+    <p class="inq-note reveal" style="margin-bottom: 40px;">
+      <a href="/portal">← Back to your own portal</a> · <a href="/admin/invoices/new">+ New invoice</a>
+    </p>
+
+    {invoiced && emailed && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Invoice created and emailed to the client.
+      </p>
+    )}
+    {invoiced && !emailed && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Invoice created, but Stripe couldn't auto-email it yet (your Stripe account needs a bit more setup
+        first — see Stripe's dashboard for what it's asking for). Share this link with the client yourself for now:{" "}
+        <a href={invoiceUrl ?? "#"} target="_blank" rel="noopener">
+          {invoiceUrl}
+        </a>
+      </p>
+    )}
 
     {!clients?.length ? (
       <p class="reveal">No clients have logged in yet.</p>
@@ -46,6 +76,28 @@ const { data: clients } = await supabaseAdmin
             <p class="ck">{new Date(client.created_at).toLocaleDateString()}</p>
             <p class="big">{client.full_name || client.email}</p>
             <p>{client.email}</p>
+          </div>
+        ))}
+      </div>
+    )}
+
+    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Invoices</h2>
+
+    {!invoices?.length ? (
+      <p class="reveal">No invoices sent yet.</p>
+    ) : (
+      <div class="contact-grid reveal">
+        {invoices.map((invoice) => (
+          <div class="contact-block">
+            <p class="ck">
+              {invoice.status} · {new Date(invoice.created_at).toLocaleDateString()}
+            </p>
+            <p class="big">{formatAmount(invoice.amount_cents)}</p>
+            <p>
+              {invoice.description}
+              <br />
+              {invoice.profiles?.full_name || invoice.profiles?.email}
+            </p>
           </div>
         ))}
       </div>

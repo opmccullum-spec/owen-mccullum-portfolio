@@ -9,6 +9,7 @@ export type Profile = {
   full_name: string | null;
   phone: string | null;
   is_admin: boolean;
+  stripe_customer_id: string | null;
   created_at: string;
 };
 
@@ -22,6 +23,7 @@ export type Invoice = {
   amount_cents: number;
   status: InvoiceStatus;
   due_date: string | null;
+  hosted_invoice_url: string | null;
   created_at: string;
 };
 
