@@ -1,0 +1,66 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { requireAdmin } from "../../../lib/auth";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+const error = Astro.url.searchParams.get("error");
+const errorMessage = error === "create_failed" ? "Something went wrong creating that invoice. Please try again." : null;
+
+// Default due date: 14 days out.
+const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+---
+
+<BaseLayout title="New Invoice — Owen McCullum" description="Send a new invoice to a client.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">New invoice.</h1>
+      <p class="page-lede">
+        Enter the client's email — if they've never logged into the portal before, an account is created for
+        them automatically. Stripe emails them a link to pay.
+      </p>
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
+
+    <form class="inquire reveal" method="POST" action="/api/admin/invoices/create" novalidate>
+      <p class="inq-eyebrow">Invoice details</p>
+
+      <div class="inq-field">
+        <label for="inv-email">Client email</label>
+        <input id="inv-email" name="email" type="email" autocomplete="off" required />
+      </div>
+
+      <div class="inq-field">
+        <label for="inv-description">Description</label>
+        <input id="inv-description" name="description" type="text" placeholder="e.g. Fall portrait session" required />
+      </div>
+
+      <div class="inq-field">
+        <label for="inv-amount">Amount (USD)</label>
+        <input id="inv-amount" name="amount" type="number" min="1" step="0.01" placeholder="250.00" required />
+      </div>
+
+      <div class="inq-field">
+        <label for="inv-due">Due date</label>
+        <input id="inv-due" name="dueDate" type="date" value={defaultDue} required />
+      </div>
+
+      {errorMessage && (
+        <p class="inq-feedback inq-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      <button class="inq-submit" type="submit">Create &amp; send invoice</button>
+    </form>
+  </main>
+  <Footer />
+</BaseLayout>
