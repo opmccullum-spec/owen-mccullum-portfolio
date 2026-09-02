@@ -36,19 +36,10 @@ async function documensoFetch(path: string, init?: RequestInit) {
   return body;
 }
 
-export type DocumensoField = {
-  id: number;
-  type: string; // e.g. "SIGNATURE", "TEXT", "DATE", "NAME", "EMAIL"...
-  label?: string;
-  fieldMeta?: { label?: string; placeholder?: string };
-  recipientId: number;
-};
-
 export type DocumensoTemplate = {
   id: number;
   title: string;
   recipients: { id: number; email: string; name: string; role: string }[];
-  fields: DocumensoField[];
 };
 
 export function getTemplate(templateId: number): Promise<DocumensoTemplate> {
@@ -56,32 +47,60 @@ export function getTemplate(templateId: number): Promise<DocumensoTemplate> {
 }
 
 /**
- * Fields worth showing on our own "new contract" form for Owen to fill in
- * before sending — everything except the signature itself (that's the
- * client's job). Best-effort label extraction since the exact shape of
- * `fieldMeta` isn't confirmed against a real template yet — adjust here if
- * Documenso's real response differs once we test against Owen's template.
+ * Field IDs on Owen's specific contract template (Documenso template
+ * 17261, "Photography_Service_and_Release_Agreement_TEMPLATE.pdf").
+ * None of the fields have labels set in Documenso (the dashboard doesn't
+ * require it), so these were mapped by hand from each field's page +
+ * position, cross-checked against the actual PDF text — verified live
+ * against the API on 2026-09-02. Deleting/re-adding fields in the template
+ * changes their IDs (moving a field does not) — re-derive this map via
+ * `GET /template/17261` if contract sending starts erroring or fields land
+ * in the wrong spot on a signed contract.
+ *
+ * Deliberately not included here (left for the client to fill in
+ * themselves when they open the document to sign, since they're
+ * conditional/not needed on every contract): additional session details,
+ * the rush-delivery timeline override, minor's name/relationship, and the
+ * promotional-use opt-out checkbox.
  */
-export function prefillableFields(template: DocumensoTemplate) {
-  return template.fields
-    .filter((f) => f.type !== "SIGNATURE" && f.type !== "INITIALS")
-    .map((f) => ({
-      id: f.id,
-      label: f.fieldMeta?.label || f.label || f.fieldMeta?.placeholder || `Field ${f.id}`,
-    }));
-}
+export const CONTRACT_FIELDS = {
+  clientName: 17302129,
+  clientNamePrint: 17302297, // mirrors clientName, next to the client's signature
+  address: 17302160,
+  email: 17302161,
+  phone: 17302162,
+  sessionDate: 17302163,
+  startEndTime: 17302164,
+  location: 17302186,
+  totalFee: 17302188,
+  retainer: 17302189,
+  balance: 17302190,
+} as const;
 
 export type UseTemplateResult = {
   id: number;
   envelopeId?: string;
-  recipients: { id: number; email: string; signingUrl?: string }[];
+  // NOTE: the real API response has no `signingUrl` field, only `token` —
+  // confirmed live (the docs are silent on this). The client's signing link
+  // is constructed from it: `https://app.documenso.com/sign/${token}`.
+  recipients: { id: number; email: string; token?: string }[];
 };
+
+export function signingUrlFromToken(token: string): string {
+  return `https://app.documenso.com/sign/${token}`;
+}
+
+// Discriminated union confirmed live against the real API (the docs we
+// found described this as `{ fieldId, value }`, which 400s — the actual
+// shape is `{ id, type, value }`, type matching the field's own type).
+// All of CONTRACT_FIELDS above are plain TEXT fields, so `text` covers v1.
+export type PrefillField = { id: number; type: "text"; value: string };
 
 export function useTemplate(params: {
   templateId: number;
   recipients: { id: number; email: string; name?: string }[];
   externalId: string;
-  prefillFields?: { fieldId: number; value: string }[];
+  prefillFields?: PrefillField[];
 }): Promise<UseTemplateResult> {
   return documensoFetch("/template/use", {
     method: "POST",

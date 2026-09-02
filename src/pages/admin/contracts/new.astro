@@ -5,7 +5,6 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
-import { getTemplate, prefillableFields } from "../../../lib/documenso";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -17,22 +16,6 @@ const errorMessage =
     : error === "not_configured"
       ? "The contract template isn't set up yet — add DOCUMENSO_TEMPLATE_ID to the environment first."
       : null;
-
-const templateId = import.meta.env.DOCUMENSO_TEMPLATE_ID;
-let fields: { id: number; label: string }[] = [];
-let templateError: string | null = null;
-
-if (templateId) {
-  try {
-    const template = await getTemplate(Number(templateId));
-    fields = prefillableFields(template);
-  } catch (err) {
-    console.error("failed to load Documenso template:", err);
-    templateError = "Couldn't load the contract template from Documenso. Check DOCUMENSO_TEMPLATE_ID and DOCUMENSO_API_KEY.";
-  }
-} else {
-  templateError = "DOCUMENSO_TEMPLATE_ID isn't set yet.";
-}
 ---
 
 <BaseLayout title="New Contract — Owen McCullum" description="Send a new contract to a client for signature.">
@@ -42,45 +25,100 @@ if (templateId) {
       <p class="page-eyebrow">Admin</p>
       <h1 class="page-title">New contract.</h1>
       <p class="page-lede">
-        Enter the client's email and fill in whatever details this contract needs — if they've never logged into
-        the portal before, an account is created for them automatically. They'll get a real e-signature request.
+        Enter the client's details — if they've never logged into the portal before, an account is created for them
+        automatically. They'll get a real e-signature request with these fields already filled in; anything not
+        listed here (additional details, minors, etc.) they'll fill in themselves when they sign.
       </p>
     </header>
 
     <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
 
-    {templateError ? (
-      <p class="inq-feedback inq-error reveal">{templateError}</p>
-    ) : (
-      <form class="inquire reveal" method="POST" action="/api/admin/contracts/create" novalidate>
-        <p class="inq-eyebrow">Contract details</p>
+    <form class="inquire reveal" method="POST" action="/api/admin/contracts/create" novalidate>
+      <p class="inq-eyebrow">Contract details</p>
 
-        <div class="inq-field">
-          <label for="ct-email">Client email</label>
-          <input id="ct-email" name="email" type="email" autocomplete="off" required />
-        </div>
+      <div class="inq-field">
+        <label for="ct-title">Title (for your own records)</label>
+        <input id="ct-title" name="title" type="text" placeholder="e.g. Fall Portrait Session Agreement" required />
+      </div>
 
-        <div class="inq-field">
-          <label for="ct-title">Title</label>
-          <input id="ct-title" name="title" type="text" placeholder="e.g. Fall Portrait Session Agreement" required />
-        </div>
+      <div class="inq-field">
+        <label for="ct-email">Client email</label>
+        <input id="ct-email" name="email" type="email" autocomplete="off" required />
+      </div>
 
-        {fields.map((field) => (
-          <div class="inq-field">
-            <label for={`field-${field.id}`}>{field.label}</label>
-            <input id={`field-${field.id}`} name={`field:${field.id}`} type="text" />
-          </div>
-        ))}
+      <div class="inq-field">
+        <label for="ct-name">Client name</label>
+        <input id="ct-name" name="clientName" type="text" required />
+      </div>
 
-        {errorMessage && (
-          <p class="inq-feedback inq-error" role="alert">
-            {errorMessage}
-          </p>
-        )}
+      <div class="inq-field">
+        <label for="ct-address">Client address (optional)</label>
+        <input id="ct-address" name="address" type="text" />
+      </div>
 
-        <button class="inq-submit" type="submit">Create &amp; send contract</button>
-      </form>
-    )}
+      <div class="inq-field">
+        <label for="ct-phone">Client phone (optional)</label>
+        <input id="ct-phone" name="phone" type="tel" />
+      </div>
+
+      <div class="inq-field">
+        <label for="ct-session-date">Date(s) of session</label>
+        <input id="ct-session-date" name="sessionDate" type="text" placeholder="e.g. October 12, 2026" required />
+      </div>
+
+      <div class="inq-field">
+        <label for="ct-time">Start / end time</label>
+        <input id="ct-time" name="startEndTime" type="text" placeholder="e.g. 4:00pm – 6:00pm" />
+      </div>
+
+      <div class="inq-field">
+        <label for="ct-location">Session location(s)</label>
+        <input id="ct-location" name="location" type="text" />
+      </div>
+
+      <div class="inq-field">
+        <label for="ct-fee">Total session fee (USD)</label>
+        <input id="ct-fee" name="totalFee" type="number" min="1" step="0.01" placeholder="500.00" required />
+        <span class="inq-note" aria-live="polite" id="fee-breakdown" style="min-height: 13px;"></span>
+      </div>
+
+      {errorMessage && (
+        <p class="inq-feedback inq-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      <button class="inq-submit" type="submit">Create &amp; send contract</button>
+    </form>
   </main>
   <Footer />
 </BaseLayout>
+
+<script>
+  function initFeeBreakdown() {
+    const fee = document.querySelector<HTMLInputElement>("#ct-fee");
+    const out = document.querySelector<HTMLElement>("#fee-breakdown");
+    if (!fee || !out || fee.dataset.init) return;
+    fee.dataset.init = "1";
+
+    const update = () => {
+      const total = parseFloat(fee.value);
+      if (!(total > 0)) {
+        out.textContent = "";
+        return;
+      }
+      const retainer = (total * 0.2).toFixed(2);
+      const balance = (total * 0.8).toFixed(2);
+      out.textContent = `Retainer (20%): $${retainer} · Balance (80%): $${balance}`;
+    };
+    fee.addEventListener("input", update);
+    update();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initFeeBreakdown, { once: true });
+  } else {
+    initFeeBreakdown();
+  }
+  document.addEventListener("astro:page-load", initFeeBreakdown);
+</script>
