@@ -22,9 +22,15 @@ const { data: invoices } = await supabaseAdmin
   .select("*, profiles(email, full_name)")
   .order("created_at", { ascending: false });
 
+const { data: contracts } = await supabaseAdmin
+  .from("contracts")
+  .select("*, profiles(email, full_name)")
+  .order("created_at", { ascending: false });
+
 const invoiced = Astro.url.searchParams.get("invoiced");
 const emailed = Astro.url.searchParams.get("emailed") !== "0";
 const invoiceUrl = Astro.url.searchParams.get("url");
+const contracted = Astro.url.searchParams.get("contracted");
 
 function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -39,8 +45,8 @@ function formatAmount(cents: number) {
         <p class="page-eyebrow">Admin</p>
         <h1 class="page-title">Clients</h1>
         <p class="page-lede">
-          Everyone who has logged into the portal, plus every invoice sent
-          so far. Contract and booking management will build out here next.
+          Everyone who has logged into the portal, plus every invoice and
+          contract sent so far. Booking management will build out here next.
         </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
@@ -49,7 +55,8 @@ function formatAmount(cents: number) {
     </header>
 
     <p class="inq-note reveal" style="margin-bottom: 40px;">
-      <a href="/portal">← Back to your own portal</a> · <a href="/admin/invoices/new">+ New invoice</a>
+      <a href="/portal">← Back to your own portal</a> · <a href="/admin/invoices/new">+ New invoice</a> ·{" "}
+      <a href="/admin/contracts/new">+ New contract</a>
     </p>
 
     {invoiced && emailed && (
@@ -64,6 +71,11 @@ function formatAmount(cents: number) {
         <a href={invoiceUrl ?? "#"} target="_blank" rel="noopener">
           {invoiceUrl}
         </a>
+      </p>
+    )}
+    {contracted && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Contract created and sent to the client for signature.
       </p>
     )}
 
@@ -98,6 +110,24 @@ function formatAmount(cents: number) {
               <br />
               {invoice.profiles?.full_name || invoice.profiles?.email}
             </p>
+          </div>
+        ))}
+      </div>
+    )}
+
+    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Contracts</h2>
+
+    {!contracts?.length ? (
+      <p class="reveal">No contracts sent yet.</p>
+    ) : (
+      <div class="contact-grid reveal">
+        {contracts.map((contract) => (
+          <div class="contact-block">
+            <p class="ck">
+              {contract.status} · {new Date(contract.created_at).toLocaleDateString()}
+            </p>
+            <p class="big">{contract.title}</p>
+            <p>{contract.profiles?.full_name || contract.profiles?.email}</p>
           </div>
         ))}
       </div>

@@ -1,0 +1,86 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { requireAdmin } from "../../../lib/auth";
+import { getTemplate, prefillableFields } from "../../../lib/documenso";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+const error = Astro.url.searchParams.get("error");
+const errorMessage =
+  error === "create_failed"
+    ? "Something went wrong creating that contract. Please try again."
+    : error === "not_configured"
+      ? "The contract template isn't set up yet — add DOCUMENSO_TEMPLATE_ID to the environment first."
+      : null;
+
+const templateId = import.meta.env.DOCUMENSO_TEMPLATE_ID;
+let fields: { id: number; label: string }[] = [];
+let templateError: string | null = null;
+
+if (templateId) {
+  try {
+    const template = await getTemplate(Number(templateId));
+    fields = prefillableFields(template);
+  } catch (err) {
+    console.error("failed to load Documenso template:", err);
+    templateError = "Couldn't load the contract template from Documenso. Check DOCUMENSO_TEMPLATE_ID and DOCUMENSO_API_KEY.";
+  }
+} else {
+  templateError = "DOCUMENSO_TEMPLATE_ID isn't set yet.";
+}
+---
+
+<BaseLayout title="New Contract — Owen McCullum" description="Send a new contract to a client for signature.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">New contract.</h1>
+      <p class="page-lede">
+        Enter the client's email and fill in whatever details this contract needs — if they've never logged into
+        the portal before, an account is created for them automatically. They'll get a real e-signature request.
+      </p>
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
+
+    {templateError ? (
+      <p class="inq-feedback inq-error reveal">{templateError}</p>
+    ) : (
+      <form class="inquire reveal" method="POST" action="/api/admin/contracts/create" novalidate>
+        <p class="inq-eyebrow">Contract details</p>
+
+        <div class="inq-field">
+          <label for="ct-email">Client email</label>
+          <input id="ct-email" name="email" type="email" autocomplete="off" required />
+        </div>
+
+        <div class="inq-field">
+          <label for="ct-title">Title</label>
+          <input id="ct-title" name="title" type="text" placeholder="e.g. Fall Portrait Session Agreement" required />
+        </div>
+
+        {fields.map((field) => (
+          <div class="inq-field">
+            <label for={`field-${field.id}`}>{field.label}</label>
+            <input id={`field-${field.id}`} name={`field:${field.id}`} type="text" />
+          </div>
+        ))}
+
+        {errorMessage && (
+          <p class="inq-feedback inq-error" role="alert">
+            {errorMessage}
+          </p>
+        )}
+
+        <button class="inq-submit" type="submit">Create &amp; send contract</button>
+      </form>
+    )}
+  </main>
+  <Footer />
+</BaseLayout>

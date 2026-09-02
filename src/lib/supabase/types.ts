@@ -36,6 +36,7 @@ export type Contract = {
   title: string;
   status: ContractStatus;
   signed_pdf_url: string | null;
+  signing_url: string | null;
   created_at: string;
 };
 
