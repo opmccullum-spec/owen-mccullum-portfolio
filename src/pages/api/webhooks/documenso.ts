@@ -17,24 +17,19 @@ function isValidSecret(received: string | null, expected: string | undefined): b
 
 export const POST: APIRoute = async ({ request }) => {
   const secret = request.headers.get("x-documenso-secret");
-  const expected = import.meta.env.DOCUMENSO_WEBHOOK_SECRET;
-  // Temporary: lengths only, never the actual values, to diagnose a
-  // mismatch without leaking the secret into logs.
-  console.log("Documenso webhook secret check:", {
-    receivedLength: secret?.length ?? null,
-    expectedLength: expected?.length ?? null,
-    headerNames: [...request.headers.keys()],
-  });
-  if (!isValidSecret(secret, expected)) {
+  if (!isValidSecret(secret, import.meta.env.DOCUMENSO_WEBHOOK_SECRET)) {
     return new Response("invalid signature", { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
-  console.log("Documenso webhook body:", JSON.stringify(body, null, 2));
   const event = body?.event;
   const externalId = body?.payload?.externalId;
 
-  if (event === "document.completed" && externalId) {
+  // Confirmed live against a real webhook delivery: the wire payload's
+  // event field is SCREAMING_SNAKE_CASE ("DOCUMENT_COMPLETED"), not the
+  // dotted/lowercase form shown in Documenso's trigger picker UI
+  // ("document.completed") — that's just a display label.
+  if (event === "DOCUMENT_COMPLETED" && externalId) {
     const { error } = await supabaseAdmin.from("contracts").update({ status: "signed" }).eq("id", externalId);
     if (error) console.error("failed to mark contract signed:", error);
   }
