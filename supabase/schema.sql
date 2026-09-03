@@ -143,6 +143,12 @@ alter table public.profiles add column if not exists stripe_customer_id text;
 -- now" link without calling Stripe's API on every page view.
 alter table public.invoices add column if not exists hosted_invoice_url text;
 
+-- ── contracts (Phase 2) ─────────────────────────────────────────────────
+-- The client's Documenso signing link, stored the same way as
+-- invoices.hosted_invoice_url so the portal can render it without another
+-- API call.
+alter table public.contracts add column if not exists signing_url text;
+
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your
 -- own email (that first login is what creates your profiles row):

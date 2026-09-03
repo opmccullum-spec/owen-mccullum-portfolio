@@ -3,28 +3,10 @@ export const prerender = false;
 import type { APIRoute } from "astro";
 import { requireAdminApi } from "../../../../lib/auth";
 import { supabaseAdmin } from "../../../../lib/supabase/admin";
-import { ensureProfile } from "../../../../lib/supabase/ensureProfile";
+import { findOrCreateClient } from "../../../../lib/supabase/findOrCreateClient";
 import { stripe } from "../../../../lib/stripe";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Find the Supabase auth user for this email, creating one if it doesn't
-// exist yet — lets Owen invoice anyone, not just clients who've already
-// logged into the portal. Known limitation: the "already exists" fallback
-// only searches the first 1000 users, fine at this business's scale.
-async function findOrCreateAuthUser(email: string) {
-  const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-  });
-  if (!createErr) return created.user;
-
-  const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-  if (listErr) throw listErr;
-  const existing = list.users.find((u) => u.email === email);
-  if (!existing) throw createErr;
-  return existing;
-}
 
 async function findOrCreateStripeCustomer(userId: string, email: string) {
   const { data: profile } = await supabaseAdmin.from("profiles").select("stripe_customer_id").eq("id", userId).single();
@@ -53,8 +35,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const daysUntilDue = Math.max(1, Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000));
 
   try {
-    const authUser = await findOrCreateAuthUser(email);
-    await ensureProfile(authUser);
+    const authUser = await findOrCreateClient(email);
     const customerId = await findOrCreateStripeCustomer(authUser.id, email);
 
     // Create the (empty) invoice first, then attach the line item to it

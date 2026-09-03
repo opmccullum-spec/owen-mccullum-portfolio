@@ -18,6 +18,11 @@ const { data: invoices } = await supabase
   .select("*")
   .order("created_at", { ascending: false });
 
+const { data: contracts } = await supabase
+  .from("contracts")
+  .select("*")
+  .order("created_at", { ascending: false });
+
 function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
@@ -69,7 +74,23 @@ function formatAmount(cents: number) {
       </div>
       <div class="contact-block reveal" style="--d:80ms">
         <p class="ck">Contracts</p>
-        <p>Nothing yet — contracts to review and sign will show up here.</p>
+        {!contracts?.length ? (
+          <p>Nothing yet — contracts to review and sign will show up here.</p>
+        ) : (
+          contracts.map((contract) => (
+            <p>
+              {contract.title} ({contract.status})
+              {contract.status === "sent" && contract.signing_url && (
+                <>
+                  {" "}
+                  <a href={contract.signing_url} target="_blank" rel="noopener">
+                    Review &amp; sign →
+                  </a>
+                </>
+              )}
+            </p>
+          ))
+        )}
       </div>
       <div class="contact-block reveal" style="--d:160ms">
         <p class="ck">Upcoming sessions</p>
