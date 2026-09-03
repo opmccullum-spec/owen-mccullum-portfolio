@@ -17,7 +17,15 @@ function isValidSecret(received: string | null, expected: string | undefined): b
 
 export const POST: APIRoute = async ({ request }) => {
   const secret = request.headers.get("x-documenso-secret");
-  if (!isValidSecret(secret, import.meta.env.DOCUMENSO_WEBHOOK_SECRET)) {
+  const expected = import.meta.env.DOCUMENSO_WEBHOOK_SECRET;
+  // Temporary: lengths only, never the actual values, to diagnose a
+  // mismatch without leaking the secret into logs.
+  console.log("Documenso webhook secret check:", {
+    receivedLength: secret?.length ?? null,
+    expectedLength: expected?.length ?? null,
+    headerNames: [...request.headers.keys()],
+  });
+  if (!isValidSecret(secret, expected)) {
     return new Response("invalid signature", { status: 401 });
   }
 
