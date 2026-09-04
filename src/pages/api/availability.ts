@@ -54,6 +54,7 @@ export const GET: APIRoute = async () => {
       timezone: settings.timezone,
       sessionDurationMinutes: settings.session_duration_minutes,
       bufferMinutes: settings.buffer_minutes,
+      slotIntervalMinutes: settings.slot_interval_minutes,
       advanceBookingDays: settings.advance_booking_days,
       minNoticeHours: settings.min_notice_hours,
       busyIntervals,

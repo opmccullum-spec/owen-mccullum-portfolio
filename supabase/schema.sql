@@ -182,16 +182,19 @@ create table if not exists public.booking_settings (
   id integer primary key default 1 check (id = 1),
   session_duration_minutes integer not null default 60,
   buffer_minutes integer not null default 15,
+  -- How far apart displayed start times are (e.g. every hour on the hour) —
+  -- independent of session_duration_minutes above.
+  slot_interval_minutes integer not null default 60,
   advance_booking_days integer not null default 30,
   min_notice_hours integer not null default 24,
-  -- Per-weekday working hours, e.g. {"mon": {"start": "09:00", "end": "17:00"}, "sun": null}.
+  -- Per-weekday working hours, e.g. {"mon": {"start": "08:00", "end": "21:00"}, "sun": null}.
   -- A missing or null day means Owen doesn't work that day.
   working_hours jsonb not null default '{
-    "mon": {"start": "09:00", "end": "17:00"},
-    "tue": {"start": "09:00", "end": "17:00"},
-    "wed": {"start": "09:00", "end": "17:00"},
-    "thu": {"start": "09:00", "end": "17:00"},
-    "fri": {"start": "09:00", "end": "17:00"},
+    "mon": {"start": "08:00", "end": "21:00"},
+    "tue": {"start": "08:00", "end": "21:00"},
+    "wed": {"start": "08:00", "end": "21:00"},
+    "thu": {"start": "08:00", "end": "21:00"},
+    "fri": {"start": "08:00", "end": "21:00"},
     "sat": null,
     "sun": null
   }'::jsonb,
@@ -207,6 +210,25 @@ alter table public.booking_settings enable row level security;
 grant select, insert, update, delete on public.booking_settings to service_role;
 
 insert into public.booking_settings (id) values (1) on conflict (id) do nothing;
+
+-- How far apart displayed start times are (e.g. every hour on the hour) —
+-- independent of session_duration_minutes, which is how long a session
+-- actually runs. Requested by Owen: hourly slots 8am-9pm.
+alter table public.booking_settings add column if not exists slot_interval_minutes integer not null default 60;
+
+update public.booking_settings
+set
+  slot_interval_minutes = 60,
+  working_hours = '{
+    "mon": {"start": "08:00", "end": "21:00"},
+    "tue": {"start": "08:00", "end": "21:00"},
+    "wed": {"start": "08:00", "end": "21:00"},
+    "thu": {"start": "08:00", "end": "21:00"},
+    "fri": {"start": "08:00", "end": "21:00"},
+    "sat": null,
+    "sun": null
+  }'::jsonb
+where id = 1;
 
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your

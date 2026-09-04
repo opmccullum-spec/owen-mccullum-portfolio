@@ -21,11 +21,17 @@ export type WorkingHours = Partial<Record<DayKey, { start: string; end: string }
 export type BusyInterval = { start: string; end: string };
 export type Slot = { start: Date; end: Date };
 
+// slotIntervalMinutes is how far apart displayed start times are (e.g. every
+// hour on the hour); sessionDurationMinutes is how long a booked session
+// actually runs. They're independent — a 60-minute session on an hourly grid
+// happens to make them equal, but that's not assumed anywhere below.
+
 export function computeAvailableSlots(params: {
   workingHours: WorkingHours;
   timezone: string;
   sessionDurationMinutes: number;
   bufferMinutes: number;
+  slotIntervalMinutes: number;
   advanceBookingDays: number;
   minNoticeHours: number;
   busyIntervals: BusyInterval[];
@@ -36,6 +42,7 @@ export function computeAvailableSlots(params: {
     timezone,
     sessionDurationMinutes,
     bufferMinutes,
+    slotIntervalMinutes,
     advanceBookingDays,
     minNoticeHours,
     busyIntervals,
@@ -79,7 +86,7 @@ export function computeAvailableSlots(params: {
         slots.push({ start: cursor, end: slotEnd });
       }
 
-      cursor = addMinutes(cursor, sessionDurationMinutes + bufferMinutes);
+      cursor = addMinutes(cursor, slotIntervalMinutes);
     }
   }
 
