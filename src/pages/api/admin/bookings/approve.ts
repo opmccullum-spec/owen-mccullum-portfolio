@@ -4,6 +4,8 @@ import type { APIRoute } from "astro";
 import { requireAdminApi } from "../../../../lib/auth";
 import { supabaseAdmin } from "../../../../lib/supabase/admin";
 import { createEvent, isCalendarBusy } from "../../../../lib/googleCalendar";
+import { sendEmail } from "../../../../lib/resend";
+import { bookingConfirmedEmail } from "../../../../lib/emailTemplates";
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const auth = await requireAdminApi(request, cookies);
@@ -40,11 +42,30 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       endISO: booking.ends_at,
     });
 
-    const { error: updateErr } = await supabaseAdmin
+    const { data: updated, error: updateErr } = await supabaseAdmin
       .from("bookings")
       .update({ status: "confirmed", google_event_id: event.id })
-      .eq("id", booking.id);
+      .eq("id", booking.id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
     if (updateErr) throw updateErr;
+
+    if (updated && client?.email) {
+      try {
+        const { data: settings } = await supabaseAdmin.from("booking_settings").select("timezone").eq("id", 1).single();
+        const { subject, html } = bookingConfirmedEmail({
+          clientName: clientLabel,
+          startISO: booking.starts_at,
+          endISO: booking.ends_at,
+          timezone: settings?.timezone ?? "America/New_York",
+          portalUrl: `${new URL(request.url).origin}/portal/login`,
+        });
+        await sendEmail({ to: client.email, subject, html });
+      } catch (err) {
+        console.error("failed to email client about approved booking:", err instanceof Error ? err.message : err);
+      }
+    }
 
     return redirect("/admin?approved=1");
   } catch (err) {
