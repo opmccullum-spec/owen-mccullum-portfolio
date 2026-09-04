@@ -18,15 +18,15 @@ const lqipMap = lqip as Record<string, string>;
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
 const frames = [
-  { img: inYellow, file: "in-yellow.jpg", alt: "A person with long locs in a yellow mesh cut-out top at an outdoor festival, Washington, D.C.", caption: "In Yellow · Washington, D.C. — 2025" },
-  { img: intoTheLight, file: "into-the-light.jpg", alt: "Backlit silhouettes of a crowd against a bright sky, hands and a phone raised overhead.", caption: "Into the Light · Washington, D.C. — 2025" },
-  { img: centerStage, file: "center-stage.jpg", alt: "A drag performer in a teal costume throws both arms wide on an outdoor festival stage beneath a clear blue sky.", caption: "Center Stage · Washington, D.C. — 2025" },
-  { img: goldenHour, file: "golden-hour.jpg", alt: "A concert crowd in warm low sun; a person in a red cap and sunglasses turns toward the camera as the stage glows behind.", caption: "Golden Hour · Washington, D.C. — 2025" },
-  { img: backToBack, file: "back-to-back.jpg", alt: "Two figures stand back to back in dramatic low light, black and white.", caption: "Back to Back — 2025" },
-  { img: frontRow, file: "front-row.jpg", alt: "A festival-goer in a bright shirt leans on a metal barricade in the sun, flashing a peace sign, flanked by others.", caption: "Front Row · Washington, D.C. — 2025" },
-  { img: remembrance, file: "remembrance.jpg", alt: "A man in a stars-and-stripes shirt arranges flags and wreaths at a memorial wall as a plane crosses the sky, Washington, D.C.", caption: "Remembrance · Washington, D.C. — 2025" },
-  { img: wallLine, file: "wall-line.jpg", alt: "Several people lie on their backs along the base of a vast pale stone monument wall in hard sun, feet up against the stone, Washington, D.C.", caption: "Against the Wall · Washington, D.C. — 2025" },
-  { img: theRiser, file: "the-riser.jpg", alt: "A person leans out of a raised press platform high on a hydraulic lift, working at equipment against a bright blue sky.", caption: "The Riser · Washington, D.C. — 2025" },
+  { img: inYellow, file: "in-yellow.jpg", alt: "A person with long locs in a yellow mesh cut-out top at an outdoor festival, Washington, D.C." },
+  { img: intoTheLight, file: "into-the-light.jpg", alt: "Backlit silhouettes of a crowd against a bright sky, hands and a phone raised overhead." },
+  { img: centerStage, file: "center-stage.jpg", alt: "A drag performer in a teal costume throws both arms wide on an outdoor festival stage beneath a clear blue sky." },
+  { img: goldenHour, file: "golden-hour.jpg", alt: "A concert crowd in warm low sun; a person in a red cap and sunglasses turns toward the camera as the stage glows behind." },
+  { img: backToBack, file: "back-to-back.jpg", alt: "Two figures stand back to back in dramatic low light, black and white." },
+  { img: frontRow, file: "front-row.jpg", alt: "A festival-goer in a bright shirt leans on a metal barricade in the sun, flashing a peace sign, flanked by others." },
+  { img: remembrance, file: "remembrance.jpg", alt: "A man in a stars-and-stripes shirt arranges flags and wreaths at a memorial wall as a plane crosses the sky, Washington, D.C." },
+  { img: wallLine, file: "wall-line.jpg", alt: "Several people lie on their backs along the base of a vast pale stone monument wall in hard sun, feet up against the stone, Washington, D.C." },
+  { img: theRiser, file: "the-riser.jpg", alt: "A person leans out of a raised press platform high on a hydraulic lift, working at equipment against a bright blue sky." },
 ];
 ---
 
@@ -38,7 +38,6 @@ const frames = [
           class={`hero-frame${i === 0 ? " is-center" : ""}`}
           role="listitem"
           data-index={i}
-          data-caption={f.caption}
         >
           <span class="hero-ph" style={`background-image:url("${lqipMap[f.file]}")`}>
             <Image
@@ -58,7 +57,6 @@ const frames = [
   </div>
 
   <div class="hero-bar">
-    <figcaption class="hero-cap">{frames[0].caption}</figcaption>
     <div class="hero-nav">
       <button type="button" class="hero-arrow hero-prev" aria-label="Previous photograph" disabled>
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 1.5 L3 6 L7.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -77,7 +75,6 @@ const frames = [
     if (!hero || hero.dataset.init) return;
     const strip = hero.querySelector<HTMLElement>(".hero-strip");
     const frames = Array.from(hero.querySelectorAll<HTMLElement>(".hero-frame"));
-    const cap = hero.querySelector<HTMLElement>(".hero-cap");
     const prevBtn = hero.querySelector<HTMLButtonElement>(".hero-prev");
     const nextBtn = hero.querySelector<HTMLButtonElement>(".hero-next");
     const curEl = hero.querySelector<HTMLElement>(".hero-cur");
@@ -88,15 +85,8 @@ const frames = [
     const last = frames.length - 1;
     let cur = 0;
 
-    // Update the caption, counter, and arrow enabled-states for the current frame.
+    // Update the counter and arrow enabled-states for the current frame.
     function updateChrome() {
-      if (cap) {
-        cap.style.opacity = "0";
-        window.setTimeout(() => {
-          cap.textContent = frames[cur].dataset.caption ?? "";
-          cap.style.opacity = "1";
-        }, 200);
-      }
       if (curEl) curEl.textContent = String(cur + 1);
       prevBtn?.toggleAttribute("disabled", cur === 0);
       nextBtn?.toggleAttribute("disabled", cur === last);
