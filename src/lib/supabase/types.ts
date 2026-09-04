@@ -61,6 +61,7 @@ export type BookingSettings = {
   id: 1;
   session_duration_minutes: number;
   buffer_minutes: number;
+  slot_interval_minutes: number;
   advance_booking_days: number;
   min_notice_hours: number;
   working_hours: WorkingHours;

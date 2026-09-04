@@ -28,7 +28,19 @@ const prefillEmail = session?.user.email ?? "";
     <div id="book-app" class="reveal">
       <p id="book-status" class="inq-note">Loading available times…</p>
 
-      <div id="slot-days" hidden></div>
+      <div id="slot-picker" class="inquire" hidden>
+        <div class="inq-field">
+          <label for="slot-select">Choose a time</label>
+          <select id="slot-select">
+            <option value="" disabled selected>Select a time…</option>
+          </select>
+        </div>
+
+        <div class="inq-field" id="other-time-field" hidden>
+          <label for="other-time-input">Preferred date &amp; time</label>
+          <input id="other-time-input" type="datetime-local" />
+        </div>
+      </div>
 
       <form id="book-form" class="inquire" hidden novalidate>
         <p class="inq-eyebrow" id="book-selected-summary">Selected time</p>
@@ -74,40 +86,8 @@ const prefillEmail = session?.user.email ?? "";
     display: none !important;
   }
 
-  #slot-days {
-    display: grid;
-    gap: 28px;
+  #slot-picker {
     margin-top: 24px;
-  }
-  .slot-day-heading {
-    font-family: var(--mono);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-size: 13px;
-    color: var(--mute);
-    margin-bottom: 10px;
-  }
-  .slot-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .slot-btn {
-    font-family: var(--mono);
-    font-size: 13px;
-    padding: 8px 14px;
-    border: 1px solid var(--line);
-    background: transparent;
-    color: var(--ink);
-    cursor: pointer;
-  }
-  .slot-btn:hover {
-    border-color: var(--ink);
-  }
-  .slot-btn.selected {
-    background: var(--ink);
-    color: var(--paper);
-    border-color: var(--ink);
   }
   .hp-field {
     position: absolute;
@@ -126,6 +106,7 @@ const prefillEmail = session?.user.email ?? "";
 
 <script>
   type Slot = { startISO: string; endISO: string };
+  type Selected = { startISO: string };
 
   function initBooking() {
     const app = document.querySelector<HTMLElement>("#book-app");
@@ -133,31 +114,42 @@ const prefillEmail = session?.user.email ?? "";
     app.dataset.init = "1";
 
     const statusEl = document.querySelector<HTMLElement>("#book-status")!;
-    const daysEl = document.querySelector<HTMLElement>("#slot-days")!;
+    const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
+    const selectEl = document.querySelector<HTMLSelectElement>("#slot-select")!;
+    const otherFieldEl = document.querySelector<HTMLElement>("#other-time-field")!;
+    const otherInputEl = document.querySelector<HTMLInputElement>("#other-time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
     const changeBtn = document.querySelector<HTMLButtonElement>("#book-change")!;
 
-    let selected: Slot | null = null;
+    let selected: Selected | null = null;
 
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
     }
 
-    function renderSlots(slots: Slot[]) {
-      daysEl.innerHTML = "";
-      if (slots.length === 0) {
-        statusEl.textContent = "No open times right now — please check back soon or reach out directly.";
-        statusEl.hidden = false;
-        daysEl.hidden = true;
-        return;
-      }
+    function resetPicker() {
+      selectEl.value = "";
+      otherFieldEl.hidden = true;
+      otherInputEl.value = "";
+      pickerEl.hidden = false;
+    }
 
-      statusEl.hidden = true;
-      daysEl.hidden = false;
+    function renderSlots(slots: Slot[]) {
+      selectEl.innerHTML = "";
+      const placeholder = new Option("Select a time…", "", true, true);
+      placeholder.disabled = true;
+      selectEl.add(placeholder);
+
+      if (slots.length === 0) {
+        statusEl.textContent = "No standard times are open right now — you can still request a custom time below.";
+        statusEl.hidden = false;
+      } else {
+        statusEl.hidden = true;
+      }
 
       const byDay = new Map<string, Slot[]>();
       for (const slot of slots) {
@@ -171,38 +163,25 @@ const prefillEmail = session?.user.email ?? "";
       }
 
       for (const [dayLabel, daySlots] of byDay) {
-        const heading = document.createElement("p");
-        heading.className = "slot-day-heading";
-        heading.textContent = dayLabel;
-
-        const grid = document.createElement("div");
-        grid.className = "slot-grid";
-
+        const group = document.createElement("optgroup");
+        group.label = dayLabel;
         for (const slot of daySlots) {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "slot-btn";
-          btn.textContent = new Date(slot.startISO).toLocaleTimeString(undefined, {
+          const timeLabel = new Date(slot.startISO).toLocaleTimeString(undefined, {
             hour: "numeric",
             minute: "2-digit",
           });
-          btn.addEventListener("click", () => selectSlot(slot, btn));
-          grid.appendChild(btn);
+          group.appendChild(new Option(timeLabel, slot.startISO));
         }
-
-        const wrap = document.createElement("div");
-        wrap.appendChild(heading);
-        wrap.appendChild(grid);
-        daysEl.appendChild(wrap);
+        selectEl.appendChild(group);
       }
+
+      selectEl.appendChild(new Option("Other — I'll specify a date & time", "other"));
+      pickerEl.hidden = false;
     }
 
-    function selectSlot(slot: Slot, btn: HTMLButtonElement) {
-      selected = slot;
-      document.querySelectorAll(".slot-btn.selected").forEach((el) => el.classList.remove("selected"));
-      btn.classList.add("selected");
-
-      const label = new Date(slot.startISO).toLocaleString(undefined, {
+    function proceedWithTime(startISO: string, dateForLabel: Date) {
+      selected = { startISO };
+      const label = dateForLabel.toLocaleString(undefined, {
         weekday: "long",
         month: "long",
         day: "numeric",
@@ -211,14 +190,39 @@ const prefillEmail = session?.user.email ?? "";
       });
       summaryEl.textContent = `Requesting: ${label}`;
 
-      daysEl.hidden = true;
+      pickerEl.hidden = true;
       formEl.hidden = false;
       errorEl.hidden = true;
     }
 
+    selectEl.addEventListener("change", () => {
+      const value = selectEl.value;
+      if (!value) return;
+      if (value === "other") {
+        otherFieldEl.hidden = false;
+        otherInputEl.value = "";
+        otherInputEl.focus();
+        return;
+      }
+      otherFieldEl.hidden = true;
+      proceedWithTime(value, new Date(value));
+    });
+
+    otherInputEl.addEventListener("change", () => {
+      if (!otherInputEl.value) return;
+      // datetime-local has no timezone info, so the browser (correctly)
+      // parses it as the visitor's own local wall-clock time.
+      const d = new Date(otherInputEl.value);
+      if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
+        showError("Please choose a time in the future.");
+        return;
+      }
+      proceedWithTime(d.toISOString(), d);
+    });
+
     changeBtn.addEventListener("click", () => {
       formEl.hidden = true;
-      daysEl.hidden = false;
+      resetPicker();
       selected = null;
     });
 
@@ -274,7 +278,7 @@ const prefillEmail = session?.user.email ?? "";
         if (data.error === "slot_taken") {
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
-          daysEl.hidden = false;
+          resetPicker();
           selected = null;
           loadSlots();
         } else if (data.error === "rate_limited") {

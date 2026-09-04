@@ -86,6 +86,18 @@ const TIMEZONES = [
       </div>
 
       <div class="inq-field">
+        <label for="av-interval">Time between shown slots (minutes)</label>
+        <input
+          id="av-interval"
+          name="slot_interval_minutes"
+          type="number"
+          min="1"
+          value={settings?.slot_interval_minutes ?? 60}
+          required
+        />
+      </div>
+
+      <div class="inq-field">
         <label for="av-advance">How many days ahead clients can book</label>
         <input
           id="av-advance"

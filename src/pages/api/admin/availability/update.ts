@@ -16,6 +16,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const num = (key: string) => Number(form.get(key));
   const sessionDurationMinutes = num("session_duration_minutes");
   const bufferMinutes = num("buffer_minutes");
+  const slotIntervalMinutes = num("slot_interval_minutes");
   const advanceBookingDays = num("advance_booking_days");
   const minNoticeHours = num("min_notice_hours");
   const timezone = String(form.get("timezone") ?? "").trim();
@@ -25,6 +26,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     sessionDurationMinutes <= 0 ||
     !Number.isFinite(bufferMinutes) ||
     bufferMinutes < 0 ||
+    !Number.isFinite(slotIntervalMinutes) ||
+    slotIntervalMinutes <= 0 ||
     !Number.isFinite(advanceBookingDays) ||
     advanceBookingDays <= 0 ||
     !Number.isFinite(minNoticeHours) ||
@@ -53,6 +56,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     .update({
       session_duration_minutes: sessionDurationMinutes,
       buffer_minutes: bufferMinutes,
+      slot_interval_minutes: slotIntervalMinutes,
       advance_booking_days: advanceBookingDays,
       min_notice_hours: minNoticeHours,
       timezone,
