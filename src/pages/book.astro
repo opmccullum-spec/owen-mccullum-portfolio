@@ -112,7 +112,7 @@ const prefillEmail = session?.user.email ?? "";
 
 <script>
   type Slot = { startISO: string; endISO: string };
-  type Selected = { startISO: string };
+  type Selected = { startISO: string; label: string };
 
   function initBooking() {
     const app = document.querySelector<HTMLElement>("#book-app");
@@ -195,7 +195,6 @@ const prefillEmail = session?.user.email ?? "";
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
-      selected = { startISO };
       const label = dateForLabel.toLocaleString(undefined, {
         weekday: "long",
         month: "long",
@@ -203,6 +202,7 @@ const prefillEmail = session?.user.email ?? "";
         hour: "numeric",
         minute: "2-digit",
       });
+      selected = { startISO, label };
       summaryEl.textContent = `Requesting: ${label}`;
 
       pickerEl.hidden = true;
@@ -292,7 +292,9 @@ const prefillEmail = session?.user.email ?? "";
           const email = String(formData.get("email"));
           confirmationEl.textContent = "";
           confirmationEl.append(
-            "Request sent! We've saved this under ",
+            "Request sent for ",
+            Object.assign(document.createElement("strong"), { textContent: selected.label }),
+            "! We've saved this under ",
             Object.assign(document.createElement("strong"), { textContent: email }),
             ". Owen will review it and follow up soon. To check on it, reschedule, or cancel later, log in anytime at the ",
             Object.assign(document.createElement("a"), { href: "/portal/login", textContent: "client portal" }),
