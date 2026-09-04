@@ -13,6 +13,9 @@ interface ImportMetaEnv {
   readonly GOOGLE_CLIENT_SECRET: string;
   readonly GOOGLE_REFRESH_TOKEN: string;
   readonly GOOGLE_CALENDAR_ID: string | undefined;
+  readonly RESEND_API_KEY: string;
+  readonly EMAIL_FROM: string;
+  readonly OWNER_EMAIL: string;
 }
 
 interface ImportMeta {

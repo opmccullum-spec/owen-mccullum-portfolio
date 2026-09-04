@@ -4,6 +4,8 @@ import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { findOrCreateClient } from "../../../lib/supabase/findOrCreateClient";
 import { isCalendarBusy } from "../../../lib/googleCalendar";
+import { sendEmail } from "../../../lib/resend";
+import { bookingRequestOwnerEmail } from "../../../lib/emailTemplates";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -44,7 +46,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   try {
     const { data: settings, error: settingsErr } = await supabaseAdmin
       .from("booking_settings")
-      .select("session_duration_minutes")
+      .select("session_duration_minutes, timezone")
       .eq("id", 1)
       .single();
     if (settingsErr || !settings) throw settingsErr ?? new Error("booking_settings missing");
@@ -92,6 +94,21 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
         return new Response(JSON.stringify({ ok: false, error: "slot_taken" }), { status: 409 });
       }
       throw insertErr;
+    }
+
+    try {
+      const { subject, html } = bookingRequestOwnerEmail({
+        name,
+        email,
+        note: note || null,
+        startISO,
+        endISO,
+        timezone: settings.timezone,
+        adminUrl: `${new URL(request.url).origin}/admin`,
+      });
+      await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html });
+    } catch (err) {
+      console.error("failed to email owner about new booking request:", err instanceof Error ? err.message : err);
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
