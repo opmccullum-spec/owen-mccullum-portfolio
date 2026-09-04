@@ -27,13 +27,37 @@ const { data: contracts } = await supabaseAdmin
   .select("*, profiles(email, full_name)")
   .order("created_at", { ascending: false });
 
+const { data: bookings } = await supabaseAdmin
+  .from("bookings")
+  .select("*, profiles(email, full_name)")
+  .order("starts_at", { ascending: true });
+
 const invoiced = Astro.url.searchParams.get("invoiced");
 const emailed = Astro.url.searchParams.get("emailed") !== "0";
 const invoiceUrl = Astro.url.searchParams.get("url");
 const contracted = Astro.url.searchParams.get("contracted");
+const approved = Astro.url.searchParams.get("approved");
+const declined = Astro.url.searchParams.get("declined");
+const cancelled = Astro.url.searchParams.get("cancelled");
+const bookingError = Astro.url.searchParams.get("error");
+const bookingErrorMessage =
+  bookingError === "slot_conflict"
+    ? "That time is no longer free on your calendar — decline this request instead."
+    : bookingError === "approve_failed" || bookingError === "decline_failed" || bookingError === "cancel_failed"
+      ? "Something went wrong with that booking action. Please try again."
+      : null;
 
 function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+function formatSession(startsAt: string, endsAt: string) {
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  const dateLabel = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const startLabel = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const endLabel = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${dateLabel}, ${startLabel}–${endLabel}`;
 }
 ---
 
@@ -45,8 +69,8 @@ function formatAmount(cents: number) {
         <p class="page-eyebrow">Admin</p>
         <h1 class="page-title">Clients</h1>
         <p class="page-lede">
-          Everyone who has logged into the portal, plus every invoice and
-          contract sent so far. Booking management will build out here next.
+          Everyone who has logged into the portal, plus every invoice,
+          contract, and booking request sent so far.
         </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
@@ -56,7 +80,7 @@ function formatAmount(cents: number) {
 
     <p class="inq-note reveal" style="margin-bottom: 40px;">
       <a href="/portal">← Back to your own portal</a> · <a href="/admin/invoices/new">+ New invoice</a> ·{" "}
-      <a href="/admin/contracts/new">+ New contract</a>
+      <a href="/admin/contracts/new">+ New contract</a> · <a href="/admin/availability">Manage availability</a>
     </p>
 
     {invoiced && emailed && (
@@ -76,6 +100,26 @@ function formatAmount(cents: number) {
     {contracted && (
       <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
         Contract created and sent to the client for signature.
+      </p>
+    )}
+    {approved && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Booking approved and added to your calendar.
+      </p>
+    )}
+    {declined && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Booking request declined.
+      </p>
+    )}
+    {cancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Booking cancelled.
+      </p>
+    )}
+    {bookingErrorMessage && (
+      <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 40px;">
+        {bookingErrorMessage}
       </p>
     )}
 
@@ -128,6 +172,45 @@ function formatAmount(cents: number) {
             </p>
             <p class="big">{contract.title}</p>
             <p>{contract.profiles?.full_name || contract.profiles?.email}</p>
+          </div>
+        ))}
+      </div>
+    )}
+
+    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Bookings</h2>
+
+    {!bookings?.length ? (
+      <p class="reveal">No booking requests yet.</p>
+    ) : (
+      <div class="contact-grid reveal">
+        {bookings.map((booking) => (
+          <div class="contact-block">
+            <p class="ck">
+              {booking.status} · {formatSession(booking.starts_at, booking.ends_at)}
+            </p>
+            <p class="big">{booking.profiles?.full_name || booking.profiles?.email}</p>
+            {booking.note && <p>{booking.note}</p>}
+            {booking.status === "pending" && (
+              <p class="inq-note" style="margin-top: 10px;">
+                <form method="POST" action="/api/admin/bookings/approve" style="display:inline;">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <button type="submit" class="portal-signout-btn">Approve</button>
+                </form>
+                {" · "}
+                <form method="POST" action="/api/admin/bookings/decline" style="display:inline;">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <button type="submit" class="portal-signout-btn">Decline</button>
+                </form>
+              </p>
+            )}
+            {booking.status === "confirmed" && (
+              <p class="inq-note" style="margin-top: 10px;">
+                <form method="POST" action="/api/admin/bookings/cancel" style="display:inline;">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <button type="submit" class="portal-signout-btn">Cancel</button>
+                </form>
+              </p>
+            )}
           </div>
         ))}
       </div>

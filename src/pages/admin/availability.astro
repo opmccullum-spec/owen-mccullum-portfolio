@@ -1,0 +1,152 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { requireAdmin } from "../../lib/auth";
+import { supabaseAdmin } from "../../lib/supabase/admin";
+import type { DayKey } from "../../lib/supabase/types";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+const { data: settings } = await supabaseAdmin.from("booking_settings").select("*").eq("id", 1).single();
+
+const saved = Astro.url.searchParams.get("saved");
+const error = Astro.url.searchParams.get("error");
+const errorMessage = error === "update_failed" ? "Something didn't look right — please check the values and try again." : null;
+
+const DAYS: { key: DayKey; label: string }[] = [
+  { key: "sun", label: "Sunday" },
+  { key: "mon", label: "Monday" },
+  { key: "tue", label: "Tuesday" },
+  { key: "wed", label: "Wednesday" },
+  { key: "thu", label: "Thursday" },
+  { key: "fri", label: "Friday" },
+  { key: "sat", label: "Saturday" },
+];
+
+const TIMEZONES = [
+  { value: "America/New_York", label: "Eastern (New York)" },
+  { value: "America/Chicago", label: "Central (Chicago)" },
+  { value: "America/Denver", label: "Mountain (Denver)" },
+  { value: "America/Los_Angeles", label: "Pacific (Los Angeles)" },
+  { value: "America/Anchorage", label: "Alaska (Anchorage)" },
+  { value: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
+];
+---
+
+<BaseLayout title="Availability — Owen McCullum" description="Configure your scheduling settings.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">Availability.</h1>
+      <p class="page-lede">
+        Controls what clients see as open when they request a session at <a href="/book">/book</a> — your
+        working hours, session length, and how far ahead people can book. This doesn't touch your calendar
+        directly; it only shapes what counts as an open slot.
+      </p>
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
+
+    {saved && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Availability settings saved.
+      </p>
+    )}
+
+    <form class="inquire reveal" method="POST" action="/api/admin/availability/update" novalidate>
+      <p class="inq-eyebrow">Session settings</p>
+
+      <div class="inq-field">
+        <label for="av-duration">Session length (minutes)</label>
+        <input
+          id="av-duration"
+          name="session_duration_minutes"
+          type="number"
+          min="1"
+          value={settings?.session_duration_minutes ?? 60}
+          required
+        />
+      </div>
+
+      <div class="inq-field">
+        <label for="av-buffer">Buffer between sessions (minutes)</label>
+        <input
+          id="av-buffer"
+          name="buffer_minutes"
+          type="number"
+          min="0"
+          value={settings?.buffer_minutes ?? 15}
+          required
+        />
+      </div>
+
+      <div class="inq-field">
+        <label for="av-advance">How many days ahead clients can book</label>
+        <input
+          id="av-advance"
+          name="advance_booking_days"
+          type="number"
+          min="1"
+          value={settings?.advance_booking_days ?? 30}
+          required
+        />
+      </div>
+
+      <div class="inq-field">
+        <label for="av-notice">Minimum notice required (hours)</label>
+        <input
+          id="av-notice"
+          name="min_notice_hours"
+          type="number"
+          min="0"
+          value={settings?.min_notice_hours ?? 24}
+          required
+        />
+      </div>
+
+      <div class="inq-field">
+        <label for="av-timezone">Your timezone</label>
+        <select id="av-timezone" name="timezone" required>
+          {TIMEZONES.map((tz) => (
+            <option value={tz.value} selected={settings?.timezone === tz.value}>
+              {tz.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <p class="inq-eyebrow" style="margin-top: 12px;">Working hours</p>
+
+      {DAYS.map(({ key, label }) => {
+        const hours = settings?.working_hours?.[key];
+        return (
+          <div class="inq-field">
+            <label>
+              <input type="checkbox" name={`available_${key}`} checked={!!hours} style="margin-right: 8px;" />
+              {label}
+            </label>
+            <div style="display:flex; gap:12px; margin-top:6px;">
+              <input type="time" name={`start_${key}`} value={hours?.start ?? "09:00"} />
+              <span class="inq-note">to</span>
+              <input type="time" name={`end_${key}`} value={hours?.end ?? "17:00"} />
+            </div>
+          </div>
+        );
+      })}
+
+      {errorMessage && (
+        <p class="inq-feedback inq-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      <button class="inq-submit" type="submit">Save availability</button>
+    </form>
+  </main>
+  <Footer />
+</BaseLayout>

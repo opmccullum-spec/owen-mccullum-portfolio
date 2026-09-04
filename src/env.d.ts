@@ -9,6 +9,10 @@ interface ImportMetaEnv {
   readonly DOCUMENSO_API_KEY: string;
   readonly DOCUMENSO_TEMPLATE_ID: string;
   readonly DOCUMENSO_WEBHOOK_SECRET: string;
+  readonly GOOGLE_CLIENT_ID: string;
+  readonly GOOGLE_CLIENT_SECRET: string;
+  readonly GOOGLE_REFRESH_TOKEN: string;
+  readonly GOOGLE_CALENDAR_ID: string | undefined;
 }
 
 interface ImportMeta {

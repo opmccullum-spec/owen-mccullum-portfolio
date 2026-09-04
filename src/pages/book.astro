@@ -1,0 +1,301 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { getOptionalProfile } from "../lib/auth";
+
+// Public page — works whether or not the visitor has ever logged in. If
+// they happen to be logged in already, prefill their name/email.
+const session = await getOptionalProfile(Astro.request, Astro.cookies);
+const prefillName = session?.profile.full_name ?? "";
+const prefillEmail = session?.user.email ?? "";
+---
+
+<BaseLayout title="Book a Session — Owen McCullum" description="Request a session date and time with Owen McCullum.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Scheduling</p>
+      <h1 class="page-title">Book a session.</h1>
+      <p class="page-lede">
+        Pick an open time below and send a request — this isn't instant-booked; Owen reviews and confirms
+        each request personally, usually within a day or two.
+      </p>
+    </header>
+
+    <div id="book-app" class="reveal">
+      <p id="book-status" class="inq-note">Loading available times…</p>
+
+      <div id="slot-days" hidden></div>
+
+      <form id="book-form" class="inquire" hidden novalidate>
+        <p class="inq-eyebrow" id="book-selected-summary">Selected time</p>
+
+        <div class="inq-field">
+          <label for="bk-name">Your name</label>
+          <input id="bk-name" name="name" type="text" required value={prefillName} />
+        </div>
+
+        <div class="inq-field">
+          <label for="bk-email">Email</label>
+          <input id="bk-email" name="email" type="email" required value={prefillEmail} />
+        </div>
+
+        <div class="inq-field">
+          <label for="bk-note">Anything Owen should know? (optional)</label>
+          <textarea id="bk-note" name="note" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <div class="hp-field" aria-hidden="true">
+          <label for="bk-company">Company</label>
+          <input id="bk-company" name="company" type="text" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
+
+        <button class="inq-submit" type="submit">Request this time</button>
+        <button class="inq-note book-change-btn" type="button" id="book-change">← Choose a different time</button>
+      </form>
+
+      <div id="book-confirmation" class="inq-feedback" role="status" hidden></div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  /* .inquire/.inq-* and #slot-days both set their own `display`, which
+     otherwise beats the browser's default `[hidden]{display:none}` rule
+     (an author style always wins over a user-agent one, regardless of
+     selector specificity) — so [hidden] needs to be spelled out here. */
+  #book-app [hidden] {
+    display: none !important;
+  }
+
+  #slot-days {
+    display: grid;
+    gap: 28px;
+    margin-top: 24px;
+  }
+  .slot-day-heading {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 13px;
+    color: var(--mute);
+    margin-bottom: 10px;
+  }
+  .slot-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .slot-btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .slot-btn:hover {
+    border-color: var(--ink);
+  }
+  .slot-btn.selected {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .hp-field {
+    position: absolute;
+    left: -9999px;
+    height: 0;
+    overflow: hidden;
+  }
+  .book-change-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
+
+<script>
+  type Slot = { startISO: string; endISO: string };
+
+  function initBooking() {
+    const app = document.querySelector<HTMLElement>("#book-app");
+    if (!app || app.dataset.init) return;
+    app.dataset.init = "1";
+
+    const statusEl = document.querySelector<HTMLElement>("#book-status")!;
+    const daysEl = document.querySelector<HTMLElement>("#slot-days")!;
+    const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
+    const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
+    const errorEl = document.querySelector<HTMLElement>("#book-error")!;
+    const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
+    const changeBtn = document.querySelector<HTMLButtonElement>("#book-change")!;
+
+    let selected: Slot | null = null;
+
+    function showError(message: string) {
+      errorEl.textContent = message;
+      errorEl.hidden = false;
+    }
+
+    function renderSlots(slots: Slot[]) {
+      daysEl.innerHTML = "";
+      if (slots.length === 0) {
+        statusEl.textContent = "No open times right now — please check back soon or reach out directly.";
+        statusEl.hidden = false;
+        daysEl.hidden = true;
+        return;
+      }
+
+      statusEl.hidden = true;
+      daysEl.hidden = false;
+
+      const byDay = new Map<string, Slot[]>();
+      for (const slot of slots) {
+        const dayLabel = new Date(slot.startISO).toLocaleDateString(undefined, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        });
+        if (!byDay.has(dayLabel)) byDay.set(dayLabel, []);
+        byDay.get(dayLabel)!.push(slot);
+      }
+
+      for (const [dayLabel, daySlots] of byDay) {
+        const heading = document.createElement("p");
+        heading.className = "slot-day-heading";
+        heading.textContent = dayLabel;
+
+        const grid = document.createElement("div");
+        grid.className = "slot-grid";
+
+        for (const slot of daySlots) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "slot-btn";
+          btn.textContent = new Date(slot.startISO).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+          btn.addEventListener("click", () => selectSlot(slot, btn));
+          grid.appendChild(btn);
+        }
+
+        const wrap = document.createElement("div");
+        wrap.appendChild(heading);
+        wrap.appendChild(grid);
+        daysEl.appendChild(wrap);
+      }
+    }
+
+    function selectSlot(slot: Slot, btn: HTMLButtonElement) {
+      selected = slot;
+      document.querySelectorAll(".slot-btn.selected").forEach((el) => el.classList.remove("selected"));
+      btn.classList.add("selected");
+
+      const label = new Date(slot.startISO).toLocaleString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      summaryEl.textContent = `Requesting: ${label}`;
+
+      daysEl.hidden = true;
+      formEl.hidden = false;
+      errorEl.hidden = true;
+    }
+
+    changeBtn.addEventListener("click", () => {
+      formEl.hidden = true;
+      daysEl.hidden = false;
+      selected = null;
+    });
+
+    async function loadSlots() {
+      try {
+        const res = await fetch("/api/availability");
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "unavailable");
+        renderSlots(data.slots as Slot[]);
+      } catch {
+        statusEl.textContent = "Couldn't load available times — please try again shortly.";
+      }
+    }
+
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!selected) return;
+      errorEl.hidden = true;
+
+      const submitBtn = formEl.querySelector<HTMLButtonElement>(".inq-submit")!;
+      submitBtn.disabled = true;
+
+      const formData = new FormData(formEl);
+      try {
+        const res = await fetch("/api/bookings/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.get("name"),
+            email: formData.get("email"),
+            note: formData.get("note"),
+            company: formData.get("company"),
+            startISO: selected.startISO,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          formEl.hidden = true;
+          const email = String(formData.get("email"));
+          confirmationEl.textContent = "";
+          confirmationEl.append(
+            "Request sent! We've saved this under ",
+            Object.assign(document.createElement("strong"), { textContent: email }),
+            ". Owen will review it and follow up soon. To check on it, reschedule, or cancel later, log in anytime at the ",
+            Object.assign(document.createElement("a"), { href: "/portal/login", textContent: "client portal" }),
+            " with that same email — no password needed.",
+          );
+          confirmationEl.hidden = false;
+          return;
+        }
+
+        if (data.error === "slot_taken") {
+          showError("That time was just taken by someone else — please pick another.");
+          formEl.hidden = true;
+          daysEl.hidden = false;
+          selected = null;
+          loadSlots();
+        } else if (data.error === "rate_limited") {
+          showError("Too many requests from here recently — please email Owen directly for now.");
+        } else {
+          showError("Something went wrong sending that request. Please try again.");
+        }
+      } catch {
+        showError("Something went wrong sending that request. Please try again.");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    loadSlots();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initBooking, { once: true });
+  } else {
+    initBooking();
+  }
+  document.addEventListener("astro:page-load", initBooking);
+</script>
