@@ -47,6 +47,31 @@ function formatSession(startsAt: string, endsAt: string) {
 
 const cancelled = Astro.url.searchParams.get("cancelled");
 const cancelFailed = Astro.url.searchParams.get("error") === "cancel_failed";
+
+// "At a glance" — the one thing in each category that actually needs the
+// client's attention right now, surfaced above the full history below.
+const now = Date.now();
+const nextSession =
+  bookings
+    ?.filter((b) => (b.status === "pending" || b.status === "confirmed") && new Date(b.starts_at).getTime() >= now)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0] ?? null;
+
+const outstandingInvoice =
+  invoices
+    ?.filter((i) => i.status === "sent")
+    .sort((a, b) => {
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    })[0] ?? null;
+
+const pendingContract =
+  contracts
+    ?.filter((c) => c.status === "sent")
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0] ?? null;
+
+const hasGlanceItem = !!(nextSession || outstandingInvoice || pendingContract);
 ---
 
 <BaseLayout title="Your Portal — Owen McCullum" description="Your client portal — invoices, contracts, and scheduling.">
@@ -82,6 +107,66 @@ const cancelFailed = Astro.url.searchParams.get("error") === "cancel_failed";
         You're an admin. <a href="/admin">Go to the admin dashboard →</a>
       </p>
     )}
+
+    <div class="dash-grid reveal">
+      {!hasGlanceItem ? (
+        <div class="dash-card dash-card-wide">
+          <p class="dash-note">You're all caught up — nothing needs your attention right now.</p>
+        </div>
+      ) : (
+        <>
+          <div class="dash-card">
+            <p class="ck">Next Session</p>
+            {nextSession ? (
+              <>
+                <p class="dash-value">{formatSession(nextSession.starts_at, nextSession.ends_at)}</p>
+                <p class="dash-note">{BOOKING_STATUS_LABEL[nextSession.status] ?? nextSession.status}</p>
+              </>
+            ) : (
+              <p class="dash-note">Nothing booked yet. <a href="/book">Book a session →</a></p>
+            )}
+          </div>
+          <div class="dash-card">
+            <p class="ck">Payment Due</p>
+            {outstandingInvoice ? (
+              <>
+                <p class="dash-value">{formatAmount(outstandingInvoice.amount_cents)}</p>
+                <p class="dash-note">
+                  {outstandingInvoice.description}
+                  {outstandingInvoice.hosted_invoice_url && (
+                    <>
+                      {" "}
+                      <a href={outstandingInvoice.hosted_invoice_url} target="_blank" rel="noopener">
+                        Pay now →
+                      </a>
+                    </>
+                  )}
+                </p>
+              </>
+            ) : (
+              <p class="dash-note">Nothing outstanding.</p>
+            )}
+          </div>
+          <div class="dash-card">
+            <p class="ck">Contract to Sign</p>
+            {pendingContract ? (
+              <>
+                <p class="dash-value">{pendingContract.title}</p>
+                <p class="dash-note">
+                  {pendingContract.signing_url && (
+                    <a href={pendingContract.signing_url} target="_blank" rel="noopener">
+                      Review &amp; sign →
+                    </a>
+                  )}
+                </p>
+              </>
+            ) : (
+              <p class="dash-note">Nothing pending.</p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
 
     <div class="contact-grid">
       <div class="contact-block reveal">
