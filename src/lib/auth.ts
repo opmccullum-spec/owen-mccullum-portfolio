@@ -78,3 +78,26 @@ export async function requireAdminApi(request: Request, cookies: AstroCookies): 
   }
   return result.ctx;
 }
+
+/**
+ * Same shape as requireAdminApi but for any logged-in client, not just
+ * admins — e.g. a client cancelling their own booking. First non-admin API
+ * guard in the codebase; every other API route so far has been /api/admin/**.
+ */
+export async function requireUserApi(request: Request, cookies: AstroCookies): Promise<AuthedContext | Response> {
+  const result = await getAuthedProfile(request, cookies);
+  if (result.status !== "ok") {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), { status: 401 });
+  }
+  return result.ctx;
+}
+
+/**
+ * For pages that work whether or not someone's logged in (e.g. the public
+ * /book page) — returns the session if there is one, null otherwise, never
+ * a redirect or error response.
+ */
+export async function getOptionalProfile(request: Request, cookies: AstroCookies): Promise<AuthedContext | null> {
+  const result = await getAuthedProfile(request, cookies);
+  return result.status === "ok" ? result.ctx : null;
+}

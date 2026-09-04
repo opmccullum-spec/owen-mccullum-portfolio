@@ -5,7 +5,7 @@ import Footer from "../components/Footer.astro";
 
 const title = "Pricing — Owen McCullum";
 const description =
-  "Build an estimate for a documentary or portrait session with Owen McCullum, Washington, D.C. — choose your session type, date, and add-ons for a real-time quote.";
+  "Book a documentary or portrait session with Owen McCullum, Washington, D.C. — request an open date and time, and he'll follow up to confirm details and pricing.";
 ---
 
 <BaseLayout title={title} description={description}>
@@ -15,15 +15,15 @@ const description =
       <p class="page-eyebrow">Pricing</p>
       <h1 class="page-title">Plan your shoot.</h1>
       <p class="page-lede">
-        Choose a session type, pick a date, and add any extras for a real-time
-        estimate. For archival prints and image licensing, see
-        <a href="/prints">Prints</a>.
+        Pick an open date and time and send a request — Owen will follow up
+        to confirm the details and pricing for your session. For archival
+        prints and image licensing, see <a href="/prints">Prints</a>.
       </p>
     </header>
 
-    <div class="pricing-widget">
-      <div id="tali-widget"></div>
-      <script is:inline src="https://tali.so/embed/efac367f-e912-405e-b2e5-841b0505319d.js"></script>
+    <div class="contact-block reveal" style="max-width: 420px;">
+      <p class="ck">Sessions</p>
+      <a class="big" href="/book">Check availability &amp; request a date →</a>
     </div>
   </main>
   <Footer />

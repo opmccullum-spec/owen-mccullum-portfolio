@@ -23,9 +23,30 @@ const { data: contracts } = await supabase
   .select("*")
   .order("created_at", { ascending: false });
 
+const { data: bookings } = await supabase.from("bookings").select("*").order("starts_at", { ascending: true });
+
 function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
+
+const BOOKING_STATUS_LABEL: Record<string, string> = {
+  pending: "Awaiting approval",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  cancelled: "Cancelled",
+};
+
+function formatSession(startsAt: string, endsAt: string) {
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  const dateLabel = start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  const startLabel = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const endLabel = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${dateLabel}, ${startLabel}–${endLabel}`;
+}
+
+const cancelled = Astro.url.searchParams.get("cancelled");
+const cancelFailed = Astro.url.searchParams.get("error") === "cancel_failed";
 ---
 
 <BaseLayout title="Your Portal — Owen McCullum" description="Your client portal — invoices, contracts, and scheduling.">
@@ -44,6 +65,17 @@ function formatAmount(cents: number) {
         <button type="submit" class="inq-note portal-signout-btn">Sign out</button>
       </form>
     </header>
+
+    {cancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Booking cancelled.
+      </p>
+    )}
+    {cancelFailed && (
+      <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 40px;">
+        Couldn't cancel that booking — please try again.
+      </p>
+    )}
 
     {profile.is_admin && (
       <p class="inq-note reveal" style="margin-bottom: 40px;">
@@ -93,8 +125,26 @@ function formatAmount(cents: number) {
         )}
       </div>
       <div class="contact-block reveal" style="--d:160ms">
-        <p class="ck">Upcoming sessions</p>
-        <p>Nothing booked yet.</p>
+        <p class="ck">Sessions</p>
+        {!bookings?.length ? (
+          <p>Nothing booked yet.</p>
+        ) : (
+          bookings.map((booking) => (
+            <p>
+              {formatSession(booking.starts_at, booking.ends_at)} ({BOOKING_STATUS_LABEL[booking.status] ?? booking.status})
+              {(booking.status === "pending" || booking.status === "confirmed") && (
+                <>
+                  {" "}
+                  <form method="POST" action="/api/bookings/cancel" style="display:inline;">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <button type="submit" class="portal-signout-btn">Cancel</button>
+                  </form>
+                </>
+              )}
+            </p>
+          ))
+        )}
+        <p class="inq-note" style="margin-top: 10px;"><a href="/book">Book another session →</a></p>
       </div>
     </div>
   </main>

@@ -40,7 +40,7 @@ export type Contract = {
   created_at: string;
 };
 
-export type BookingStatus = "pending" | "confirmed" | "cancelled";
+export type BookingStatus = "pending" | "confirmed" | "cancelled" | "declined";
 
 export type Booking = {
   id: string;
@@ -49,7 +49,23 @@ export type Booking = {
   starts_at: string;
   ends_at: string;
   status: BookingStatus;
+  note: string | null;
+  requester_ip: string | null;
   created_at: string;
+};
+
+export type DayKey = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+export type WorkingHours = Partial<Record<DayKey, { start: string; end: string } | null>>;
+
+export type BookingSettings = {
+  id: 1;
+  session_duration_minutes: number;
+  buffer_minutes: number;
+  advance_booking_days: number;
+  min_notice_hours: number;
+  working_hours: WorkingHours;
+  timezone: string;
+  updated_at: string;
 };
 
 export type Database = {
@@ -59,6 +75,11 @@ export type Database = {
       invoices: { Row: Invoice; Insert: Partial<Invoice>; Update: Partial<Invoice> };
       contracts: { Row: Contract; Insert: Partial<Contract>; Update: Partial<Contract> };
       bookings: { Row: Booking; Insert: Partial<Booking>; Update: Partial<Booking> };
+      booking_settings: {
+        Row: BookingSettings;
+        Insert: Partial<BookingSettings>;
+        Update: Partial<BookingSettings>;
+      };
     };
   };
 };
