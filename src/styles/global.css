@@ -1708,6 +1708,49 @@ html.js .wordmark.wm-done .wm-l {
   }
 }
 
+/* "At a glance" summary cards — the one thing per category that actually
+   needs the client's attention, shown above the full history below. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 56px;
+}
+.dash-card {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 22px 24px;
+}
+.dash-card-wide {
+  grid-column: 1 / -1;
+}
+.dash-value {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(17px, 1.8vw, 20px);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  line-height: 1.3;
+  margin: 0 0 8px;
+}
+.dash-note {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--mute);
+  margin: 0;
+}
+.dash-note a {
+  color: var(--ink);
+}
+@media (max-width: 860px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
 /* ----------------------------------------------------------------------------
    Film grain — subtle documentary texture over the browsing experience.
    Sits below the lightbox (z 100) so inspecting a print stays clean.
