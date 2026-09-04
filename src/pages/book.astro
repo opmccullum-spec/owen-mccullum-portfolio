@@ -30,15 +30,21 @@ const prefillEmail = session?.user.email ?? "";
 
       <div id="slot-picker" class="inquire" hidden>
         <div class="inq-field">
+          <label for="day-input">Choose a day</label>
+          <input id="day-input" type="date" />
+        </div>
+
+        <div class="inq-field" id="time-field" hidden>
           <label for="slot-select">Choose a time</label>
           <select id="slot-select">
             <option value="" disabled selected>Select a time…</option>
           </select>
+          <span class="inq-note" id="time-hint" hidden>No standard times that day — choose "Other" to request one.</span>
         </div>
 
         <div class="inq-field" id="other-time-field" hidden>
-          <label for="other-time-input">Preferred date &amp; time</label>
-          <input id="other-time-input" type="datetime-local" />
+          <label for="other-time-input">Preferred time</label>
+          <input id="other-time-input" type="time" />
         </div>
       </div>
 
@@ -115,7 +121,10 @@ const prefillEmail = session?.user.email ?? "";
 
     const statusEl = document.querySelector<HTMLElement>("#book-status")!;
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
+    const dayInputEl = document.querySelector<HTMLInputElement>("#day-input")!;
+    const timeFieldEl = document.querySelector<HTMLElement>("#time-field")!;
     const selectEl = document.querySelector<HTMLSelectElement>("#slot-select")!;
+    const timeHintEl = document.querySelector<HTMLElement>("#time-hint")!;
     const otherFieldEl = document.querySelector<HTMLElement>("#other-time-field")!;
     const otherInputEl = document.querySelector<HTMLInputElement>("#other-time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
@@ -125,13 +134,26 @@ const prefillEmail = session?.user.email ?? "";
     const changeBtn = document.querySelector<HTMLButtonElement>("#book-change")!;
 
     let selected: Selected | null = null;
+    let slotsByDay = new Map<string, Slot[]>();
 
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
     }
 
+    // Local (visitor's own timezone) YYYY-MM-DD, matching what a native
+    // <input type="date"> produces — so a slot's day lines up with the day
+    // the visitor actually picked in the calendar.
+    function localDateKey(d: Date): string {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
     function resetPicker() {
+      dayInputEl.value = "";
+      timeFieldEl.hidden = true;
       selectEl.value = "";
       otherFieldEl.hidden = true;
       otherInputEl.value = "";
@@ -139,44 +161,37 @@ const prefillEmail = session?.user.email ?? "";
     }
 
     function renderSlots(slots: Slot[]) {
+      slotsByDay = new Map();
+      for (const slot of slots) {
+        const key = localDateKey(new Date(slot.startISO));
+        if (!slotsByDay.has(key)) slotsByDay.set(key, []);
+        slotsByDay.get(key)!.push(slot);
+      }
+
+      dayInputEl.min = localDateKey(new Date());
+      statusEl.hidden = true;
+      pickerEl.hidden = false;
+    }
+
+    function populateTimesForDay(dateKey: string) {
+      const daySlots = slotsByDay.get(dateKey) ?? [];
+
       selectEl.innerHTML = "";
       const placeholder = new Option("Select a time…", "", true, true);
       placeholder.disabled = true;
       selectEl.add(placeholder);
-
-      if (slots.length === 0) {
-        statusEl.textContent = "No standard times are open right now — you can still request a custom time below.";
-        statusEl.hidden = false;
-      } else {
-        statusEl.hidden = true;
-      }
-
-      const byDay = new Map<string, Slot[]>();
-      for (const slot of slots) {
-        const dayLabel = new Date(slot.startISO).toLocaleDateString(undefined, {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
+      for (const slot of daySlots) {
+        const timeLabel = new Date(slot.startISO).toLocaleTimeString(undefined, {
+          hour: "numeric",
+          minute: "2-digit",
         });
-        if (!byDay.has(dayLabel)) byDay.set(dayLabel, []);
-        byDay.get(dayLabel)!.push(slot);
+        selectEl.add(new Option(timeLabel, slot.startISO));
       }
+      selectEl.add(new Option("Other — I'll specify a time", "other"));
 
-      for (const [dayLabel, daySlots] of byDay) {
-        const group = document.createElement("optgroup");
-        group.label = dayLabel;
-        for (const slot of daySlots) {
-          const timeLabel = new Date(slot.startISO).toLocaleTimeString(undefined, {
-            hour: "numeric",
-            minute: "2-digit",
-          });
-          group.appendChild(new Option(timeLabel, slot.startISO));
-        }
-        selectEl.appendChild(group);
-      }
-
-      selectEl.appendChild(new Option("Other — I'll specify a date & time", "other"));
-      pickerEl.hidden = false;
+      timeHintEl.hidden = daySlots.length > 0;
+      otherFieldEl.hidden = true;
+      timeFieldEl.hidden = false;
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -195,6 +210,17 @@ const prefillEmail = session?.user.email ?? "";
       errorEl.hidden = true;
     }
 
+    dayInputEl.addEventListener("change", () => {
+      selectEl.value = "";
+      otherFieldEl.hidden = true;
+      otherInputEl.value = "";
+      if (!dayInputEl.value) {
+        timeFieldEl.hidden = true;
+        return;
+      }
+      populateTimesForDay(dayInputEl.value);
+    });
+
     selectEl.addEventListener("change", () => {
       const value = selectEl.value;
       if (!value) return;
@@ -209,10 +235,11 @@ const prefillEmail = session?.user.email ?? "";
     });
 
     otherInputEl.addEventListener("change", () => {
-      if (!otherInputEl.value) return;
-      // datetime-local has no timezone info, so the browser (correctly)
-      // parses it as the visitor's own local wall-clock time.
-      const d = new Date(otherInputEl.value);
+      if (!otherInputEl.value || !dayInputEl.value) return;
+      // Combining the calendar day with a plain HH:MM has no timezone info,
+      // so the browser (correctly) parses it as the visitor's own local
+      // wall-clock time on that day.
+      const d = new Date(`${dayInputEl.value}T${otherInputEl.value}:00`);
       if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
         showError("Please choose a time in the future.");
         return;
