@@ -28,10 +28,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
          script fails to run. -->
     <script is:inline>
       document.documentElement.classList.add("js");
-      try {
-        if (localStorage.getItem("tone") === "bw")
-          document.documentElement.classList.add("bw-on");
-      } catch (e) {}
       // Deter casual image saving: block right-click ("Save image", "Open image
       // in new tab") and drag on photographs — including the overlay elements
       // layered over them. Document-level so it survives View Transitions.

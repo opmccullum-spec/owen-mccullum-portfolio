@@ -119,7 +119,7 @@ export default function Lightbox({ images }: Props) {
   // Size the photo to fit the viewport, then frame it with an even white mat.
   const isPhone = vp.w < 700;
   const frame = isPhone ? 12 : 18; // top/left/right border
-  const capH = isPhone ? 78 : 96; // reserved height for the caption block
+  const capH = isPhone ? 46 : 56; // reserved height for the caption block
   const maxCardW = Math.min(vp.w * 0.94, 1180);
   const availW = maxCardW - frame * 2;
   const availH = vp.h * 0.9 - frame - capH;
@@ -189,8 +189,6 @@ export default function Lightbox({ images }: Props) {
           />
         </div>
         <figcaption class="lb-cap">
-          <span class="lb-title">{img.title}</span>
-          <span class="lb-meta">{img.location} · Archival pigment print</span>
           {img.print && (
             <a class="lb-print" href="/prints">
               Available as a print →

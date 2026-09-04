@@ -58,19 +58,6 @@ const lightboxImages: LightboxImage[] = await Promise.all(
 ---
 
 <div class="work">
-  <div class="work-head">
-    <button
-      class="tone-toggle"
-      type="button"
-      role="switch"
-      aria-checked="false"
-      aria-label="Show photographs in black and white"
-    >
-      <span class="tone-switch" aria-hidden="true"><span class="tone-knob" /></span>
-      <span class="tone-text">Black &amp; white</span>
-    </button>
-  </div>
-
   <div class="grid">
     {
       photos.map((p, i) => (
@@ -100,10 +87,6 @@ const lightboxImages: LightboxImage[] = await Promise.all(
             )}
             <span class="expand-hint" aria-hidden="true">View</span>
           </span>
-          <span class="cap">
-            <span class="t">{p.title}</span>
-            <span>{p.location}</span>
-          </span>
         </button>
       ))
     }
@@ -128,31 +111,8 @@ const lightboxImages: LightboxImage[] = await Promise.all(
       });
     });
   }
-  // Black & white ↔ color toggle (persists in localStorage; applied before
-  // paint by the inline head script).
-  function wireToneToggle() {
-    const btn = document.querySelector<HTMLButtonElement>(".tone-toggle");
-    if (!btn || btn.dataset.wired) return;
-    btn.dataset.wired = "1";
-
-    const sync = () => {
-      const on = document.documentElement.classList.contains("bw-on");
-      btn.setAttribute("aria-checked", String(on));
-    };
-    sync();
-
-    btn.addEventListener("click", () => {
-      const on = document.documentElement.classList.toggle("bw-on");
-      try {
-        localStorage.setItem("tone", on ? "bw" : "color");
-      } catch (e) {}
-      sync();
-    });
-  }
-
   function initGallery() {
     wirePlates();
-    wireToneToggle();
   }
 
   if (document.readyState === "loading") {
