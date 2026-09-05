@@ -5,7 +5,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { safeRedirectPath } from "../../lib/auth";
 
+const next = safeRedirectPath(Astro.url.searchParams.get("next")) ?? "/portal";
 const error = Astro.url.searchParams.get("error");
 const errorMessage =
   error === "auth_failed"
@@ -22,7 +24,7 @@ const {
   data: { user },
 } = await supabase.auth.getUser();
 if (user && error !== "missing_profile") {
-  return Astro.redirect("/portal");
+  return Astro.redirect(next);
 }
 ---
 
@@ -38,7 +40,7 @@ if (user && error !== "missing_profile") {
       </p>
     </header>
 
-    <form class="inquire reveal" id="login-form" novalidate>
+    <form class="inquire reveal" id="login-form" novalidate data-next={next}>
       <p class="inq-eyebrow">Log in</p>
 
       <div class="inq-field inq-initial">
@@ -90,6 +92,7 @@ if (user && error !== "missing_profile") {
     const code = form.querySelector<HTMLInputElement>("[name=code]")!;
     const verifyBtn = form.querySelector<HTMLButtonElement>(".inq-verify")!;
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const next = form.dataset.next || "/portal";
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -111,7 +114,7 @@ if (user && error !== "missing_profile") {
         const res = await fetch("/api/auth/send-magic-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.value.trim() }),
+          body: JSON.stringify({ email: email.value.trim(), next }),
         });
         if (!res.ok) throw new Error("request failed");
 
@@ -148,7 +151,7 @@ if (user && error !== "missing_profile") {
           body: JSON.stringify({ email: email.value.trim(), token: value }),
         });
         if (!res.ok) throw new Error("verify failed");
-        window.location.href = "/portal";
+        window.location.href = next;
       } catch {
         wrap.classList.add("invalid");
         wrap.querySelector(".inq-err")!.textContent = "That code didn't work — check it and try again.";

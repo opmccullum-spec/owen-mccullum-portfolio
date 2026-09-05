@@ -16,6 +16,18 @@ type AuthResult =
   | { status: "no_profile" };
 
 /**
+ * Validate a `next` redirect target: must be a same-site relative path, so a
+ * crafted `?next=` can never bounce a login through to an external site.
+ * Anything else (absolute URL, protocol-relative `//host`, empty) is
+ * rejected in favor of the caller's own default.
+ */
+export function safeRedirectPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (!path.startsWith("/") || path.startsWith("//") || path.startsWith("/\\")) return null;
+  return path;
+}
+
+/**
  * Core check, no redirect behavior: who (if anyone) is logged in, with their
  * profiles row. Shared by the .astro page guards below and by API-route
  * guards, which need different failure behavior (redirect vs JSON response).
@@ -44,8 +56,11 @@ async function getAuthedProfile(request: Request, cookies: AstroCookies): Promis
  */
 export async function requireUser(Astro: AstroGlobal): Promise<AuthedContext | Response> {
   const result = await getAuthedProfile(Astro.request, Astro.cookies);
-  if (result.status === "no_user") return Astro.redirect("/portal/login");
-  if (result.status === "no_profile") return Astro.redirect("/portal/login?error=missing_profile");
+  // Preserve where they were headed (e.g. /admin) so logging in from here
+  // lands them back there instead of always dropping them at /portal.
+  const next = encodeURIComponent(Astro.url.pathname + Astro.url.search);
+  if (result.status === "no_user") return Astro.redirect(`/portal/login?next=${next}`);
+  if (result.status === "no_profile") return Astro.redirect(`/portal/login?error=missing_profile&next=${next}`);
   return result.ctx;
 }
 
