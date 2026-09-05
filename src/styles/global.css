@@ -217,36 +217,6 @@ img {
   outline-offset: 3px;
 }
 
-/* Intro */
-.intro {
-  /* vertical only — keep .wrap's horizontal padding intact */
-  padding-top: 60px;
-  padding-bottom: 64px;
-}
-
-.intro .eyebrow {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--mute);
-  margin-bottom: 30px;
-}
-
-.intro h1 {
-  font-family: var(--display);
-  font-weight: 500;
-  font-size: clamp(30px, 4.4vw, 60px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  margin: 0;
-  max-width: 18ch;
-}
-
-.intro h1 span {
-  color: var(--mute);
-}
-
 /* Work / gallery */
 .work {
   padding: 36px 0 40px;
@@ -960,17 +930,6 @@ html.js .hero-strip {
     width: 40px;
     font-size: 26px;
   }
-}
-
-/* ----------------------------------------------------------------------------
-   Intro lede + content pages (Prints, Contact)
----------------------------------------------------------------------------- */
-.intro .lede {
-  margin: 28px 0 0;
-  max-width: 60ch;
-  font-size: clamp(16px, 1.5vw, 19px);
-  line-height: 1.55;
-  color: var(--mute);
 }
 
 .page {
