@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import Work from "../../components/Work.astro";
+
+const title = "Work — Owen McCullum";
+const description = "Documentary and street photography from Washington, D.C. by Owen McCullum, organized into four bodies of work.";
+---
+
+<BaseLayout title={title} description={description}>
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Work</p>
+      <h1 class="page-title">Four bodies of work.</h1>
+      <p class="page-lede">
+        Documentary and street photography from Washington, D.C., organized
+        into ongoing series — pick one to see the full gallery.
+      </p>
+    </header>
+
+    <Work />
+  </main>
+  <Footer />
+</BaseLayout>
