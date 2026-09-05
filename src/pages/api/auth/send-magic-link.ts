@@ -2,6 +2,8 @@ export const prerender = false;
 
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
+import { safeRedirectPath } from "../../../lib/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,7 +20,27 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
     return new Response(JSON.stringify({ ok: false, error: "invalid_email" }), { status: 400 });
   }
 
+  // Admin accounts log in with a password (see /admin/login), not this
+  // passwordless flow — refuse before ever issuing an OTP.
+  const { data: adminProfile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin")
+    .eq("email", email)
+    .maybeSingle();
+  if (adminProfile?.is_admin) {
+    return new Response(JSON.stringify({ ok: false, error: "admin_account" }), { status: 403 });
+  }
+
+  const next = safeRedirectPath(
+    typeof body === "object" && body && "next" in body ? String((body as any).next) : null,
+  );
+
   const supabase = createSupabaseServerClient(request, cookies);
+
+  // Carry the original destination (e.g. /admin) through the emailed link
+  // so /portal/auth/callback can send them back there, not just to /portal.
+  const callbackUrl = new URL("/portal/auth/callback", url);
+  if (next) callbackUrl.searchParams.set("next", next);
 
   // NOTE: shouldCreateUser defaults to true, so any email can self-register
   // by requesting a link. That's fine for now (RLS still confines everyone
@@ -28,7 +50,7 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: new URL("/portal/auth/callback", url).toString(),
+      emailRedirectTo: callbackUrl.toString(),
     },
   });
 

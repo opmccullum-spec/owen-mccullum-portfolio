@@ -3,15 +3,26 @@ export const prerender = false;
 
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { ensureProfile } from "../../../lib/supabase/ensureProfile";
+import { safeRedirectPath } from "../../../lib/auth";
 
 const code = Astro.url.searchParams.get("code");
+const next = safeRedirectPath(Astro.url.searchParams.get("next")) ?? "/portal";
 
 if (code) {
   const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (!error && data.user) {
     await ensureProfile(data.user);
-    return Astro.redirect("/portal");
+
+    // Admin logs in with a password (see /admin/login) — a stale magic
+    // link from before that change shouldn't still be able to sign one in.
+    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", data.user.id).single();
+    if (profile?.is_admin) {
+      await supabase.auth.signOut();
+      return Astro.redirect("/admin/login");
+    }
+
+    return Astro.redirect(next);
   }
 }
 
