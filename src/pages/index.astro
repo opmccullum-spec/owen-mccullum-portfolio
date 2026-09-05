@@ -2,21 +2,18 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Hero from "../components/Hero.astro";
-import Work from "../components/Work.astro";
 import About from "../components/About.astro";
 import Footer from "../components/Footer.astro";
-import ChapterNav from "../components/ChapterNav.astro";
 ---
 
 <BaseLayout>
   <Header />
-  <ChapterNav />
   <main>
     <Hero />
 
     <section class="wrap intro">
       <p class="eyebrow reveal" style="--d:120ms">
-        Documentary &amp; street photography · Washington, D.C.
+        Documentary &amp; portrait photography · Washington, D.C.
       </p>
       <h1 class="reveal" style="--d:220ms">
         Public life in Washington, <span>photographed up close.</span>
@@ -26,10 +23,6 @@ import ChapterNav from "../components/ChapterNav.astro";
         its believers and bystanders — made on foot, at close range.
       </p>
     </section>
-
-    <div class="wrap">
-      <Work />
-    </div>
 
     <About />
   </main>
