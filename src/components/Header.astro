@@ -7,34 +7,12 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-// Pre-split the wordmark into letters with a running index for the
-// typewriter reveal, keeping words unbreakable.
 const NAME = "Owen McCullum";
-const wordmark = (() => {
-  let i = 0;
-  return NAME.split(" ").map((word) => ({
-    word,
-    letters: word.split("").map((ch) => ({ ch, i: i++ })),
-  }));
-})();
 ---
 
 <header class="site-header" transition:persist>
   <div class="wrap bar">
-    <a class="name wordmark" href="/" aria-label={NAME}>
-      {
-        wordmark.map((w, wi) => (
-          <Fragment>
-            {wi > 0 && <span class="wm-space" aria-hidden="true">&nbsp;</span>}
-            <span class="wm-word">
-              {w.letters.map(({ ch, i }) => (
-                <span class="wm-l" style={`--i:${i}`} aria-hidden="true">{ch}</span>
-              ))}
-            </span>
-          </Fragment>
-        ))
-      }
-    </a>
+    <a class="name" href="/" aria-label={NAME}>{NAME}</a>
 
     <button
       class="nav-toggle"
@@ -59,90 +37,6 @@ const wordmark = (() => {
 </header>
 
 <script>
-  // --- Typewriter wordmark: each letter scrambles through a few random
-  // glyphs before locking in, left-to-right, with a blinking caret. ---
-  function typeWordmark() {
-    const wm = document.querySelector<HTMLElement>(".wordmark");
-    if (!wm || wm.classList.contains("wm-done")) return;
-
-    const letters = Array.from(wm.querySelectorAll<HTMLElement>(".wm-l"));
-    if (!letters.length) return;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      wm.classList.add("wm-done");
-      return;
-    }
-
-    const finals = letters.map((l) => (l.textContent ?? "").trim());
-
-    // Lock each slot to its final width so scrambling never shifts layout.
-    letters.forEach((l, i) => {
-      l.style.width = `${l.getBoundingClientRect().width}px`;
-      l.dataset.final = finals[i];
-    });
-
-    wm.classList.add("typing");
-    const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ@#%&*?/<>";
-    const TYPE = 82; // cadence between letters
-    const SETTLE = 170; // scramble duration per letter
-    const FRAME = 34; // scramble frame interval
-
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      letters.forEach((l, i) => {
-        l.textContent = finals[i];
-        l.classList.add("on");
-        l.classList.remove("caret");
-        l.style.width = "";
-      });
-      wm.classList.remove("typing");
-      wm.classList.add("wm-done");
-    };
-    // Hard failsafe in case a timer is dropped.
-    const guard = window.setTimeout(finish, letters.length * TYPE + 1400);
-
-    letters.forEach((l, i) => {
-      window.setTimeout(() => {
-        if (done) return;
-        l.classList.add("on");
-        letters.forEach((x) => x.classList.remove("caret"));
-        l.classList.add("caret");
-
-        let t = 0;
-        const iv = window.setInterval(() => {
-          l.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-          t += FRAME;
-          if (t >= SETTLE) {
-            window.clearInterval(iv);
-            l.textContent = finals[i];
-            if (i === letters.length - 1) {
-              window.setTimeout(() => {
-                window.clearTimeout(guard);
-                finish();
-              }, 380);
-            }
-          }
-        }, FRAME);
-      }, 220 + i * TYPE);
-    });
-  }
-
-  function startWordmark() {
-    // Measure widths only once the display font is ready, so locked slot
-    // widths match the real glyphs.
-    const fonts = (document as any).fonts;
-    if (fonts && fonts.ready) {
-      Promise.race([
-        fonts.ready,
-        new Promise((r) => window.setTimeout(r, 700)),
-      ]).then(typeWordmark);
-    } else {
-      typeWordmark();
-    }
-  }
-
   // --- Mobile navigation (hamburger) ---
   function wireNav() {
     const header = document.querySelector<HTMLElement>(".site-header");
@@ -185,13 +79,10 @@ const wordmark = (() => {
       });
   }
 
-  startWordmark();
   wireNav();
   setActiveNav();
   document.addEventListener("astro:page-load", () => {
-    startWordmark();
     wireNav();
     setActiveNav();
   });
-</script>
 </script>
