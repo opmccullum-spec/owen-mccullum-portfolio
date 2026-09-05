@@ -437,31 +437,13 @@ img {
 
 /* Footer */
 footer {
-  padding: 96px 0 60px;
+  padding: 64px 0;
   border-top: 1px solid var(--line);
-}
-
-.foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-
-.foot h2 {
-  font-family: var(--display);
-  font-weight: 500;
-  font-size: clamp(40px, 7vw, 92px);
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  margin: 0;
 }
 
 .foot .links {
   font-family: var(--mono);
   font-size: 13px;
-  text-align: right;
   letter-spacing: 0.04em;
 }
 
@@ -475,19 +457,6 @@ footer {
 
 .foot .links a:hover {
   color: var(--ink);
-}
-
-.colophon {
-  margin-top: 64px;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--mute);
-  text-transform: uppercase;
 }
 
 a:focus-visible,
@@ -537,13 +506,6 @@ a:focus-visible,
   .about .portrait {
     flex-basis: auto;
     width: 140px;
-  }
-  .foot {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .foot .links {
-    text-align: left;
   }
 }
 
@@ -1480,18 +1442,6 @@ html.js .hero-strip {
 /* ----------------------------------------------------------------------------
    Footer credit + contact form feedback
 ---------------------------------------------------------------------------- */
-.colophon-credit {
-  text-align: right;
-}
-/* Match the site's standard links (nav / footer): mute → ink, no underline. */
-.colophon a {
-  color: var(--mute);
-  text-decoration: none;
-  transition: color 0.25s ease;
-}
-.colophon a:hover {
-  color: var(--ink);
-}
 .inq-feedback {
   font-family: var(--mono);
   font-size: 12px;
