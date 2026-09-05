@@ -23,9 +23,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Mark JS-capable before paint so reveal styles apply with no flash.
-         Failsafe: ensure the wordmark is never left hidden if its typewriter
-         script fails to run. -->
+    <!-- Mark JS-capable before paint so reveal styles apply with no flash. -->
     <script is:inline>
       document.documentElement.classList.add("js");
       // Deter casual image saving: block right-click ("Save image", "Open image
@@ -53,13 +51,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
         },
         true,
       );
-      setTimeout(function () {
-        document
-          .querySelectorAll(".wordmark:not(.wm-done)")
-          .forEach(function (w) {
-            w.classList.add("wm-done");
-          });
-      }, 2600);
     </script>
 
     <ClientRouter />

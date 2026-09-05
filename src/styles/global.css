@@ -636,48 +636,6 @@ html.js .hero-strip {
 }
 
 /* ----------------------------------------------------------------------------
-   Animated wordmark (letters rise + fade on first load)
----------------------------------------------------------------------------- */
-.wordmark {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1;
-}
-.wm-word {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-  line-height: 1;
-}
-.wm-l {
-  display: inline-block;
-  text-align: center;
-  overflow: hidden;
-  line-height: 1;
-}
-/* Letters are hidden until the typewriter types them in (JS-enhanced only) */
-html.js .wm-l {
-  opacity: 0;
-}
-html.js .wm-l.on,
-html.js .wordmark.wm-done .wm-l {
-  opacity: 1;
-}
-/* Blinking caret on the letter currently being typed (box-shadow keeps it
-   outside the box so it never shifts layout) */
-.wm-l.caret {
-  box-shadow: 2px 0 0 currentColor;
-}
-.wordmark.typing .wm-l.caret {
-  animation: wm-caret 0.85s steps(1) infinite;
-}
-@keyframes wm-caret {
-  50% {
-    box-shadow: 2px 0 0 transparent;
-  }
-}
-
-/* ----------------------------------------------------------------------------
    Header: hamburger + mobile navigation
 ---------------------------------------------------------------------------- */
 .bar {
@@ -1558,14 +1516,6 @@ html.js .wordmark.wm-done .wm-l {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html.js .wm-l {
-    opacity: 1 !important;
-    animation: none !important;
-  }
-  .wm-l.caret {
-    box-shadow: none !important;
-    animation: none !important;
-  }
   .lb,
   .lb-card {
     animation: none !important;
