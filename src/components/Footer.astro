@@ -1,10 +1,7 @@
 ---
-const year = new Date().getFullYear();
 const links = [
   { href: "mailto:owenmcc.photo@gmail.com", label: "owenmcc.photo@gmail.com" },
   { href: "https://instagram.com/owenmcc.photo", label: "Instagram → @owenmcc.photo" },
-  { href: "/book", label: "Booking" },
-  { href: "/prints", label: "Print & licensing" },
   { href: "/contact", label: "Contact" },
   { href: "/portal/login", label: "Client portal" },
 ];
@@ -13,18 +10,9 @@ const links = [
 <footer id="contact">
   <div class="wrap">
     <div class="foot">
-      <h2 class="reveal">Let's make<br />some frames.</h2>
-      <div class="links reveal" style="--d:140ms">
+      <div class="links reveal">
         {links.map((l) => <a href={l.href} data-astro-reload={l.reload}>{l.label}</a>)}
       </div>
-    </div>
-    <div class="colophon">
-      <span>© {year} Owen McCullum · Washington, D.C.</span>
-      <span class="colophon-credit">
-        Designed and developed by
-        <a href="https://ethanwong.photography" target="_blank" rel="noopener">Ethan W. Photography</a>
-        · <a href="/terms">Terms &amp; Conditions</a>
-      </span>
     </div>
   </div>
 </footer>
