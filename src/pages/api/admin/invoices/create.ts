@@ -23,22 +23,28 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim();
-  const description = String(form.get("description") ?? "").trim();
-  const amountDollars = parseFloat(String(form.get("amount") ?? ""));
   const dueDate = String(form.get("dueDate") ?? "");
 
-  if (!EMAIL_RE.test(email) || !description || !(amountDollars > 0) || !dueDate) {
+  const itemDescriptions = form.getAll("itemDescription[]").map((v) => String(v).trim());
+  const itemAmounts = form.getAll("itemAmount[]").map((v) => parseFloat(String(v)));
+  const items = itemDescriptions
+    .map((description, i) => ({ description, amountDollars: itemAmounts[i] }))
+    .filter((item) => item.description && item.amountDollars > 0);
+
+  if (!EMAIL_RE.test(email) || !items.length || !dueDate) {
     return redirect("/admin/invoices/new?error=create_failed");
   }
 
-  const amountCents = Math.round(amountDollars * 100);
+  const lineItems = items.map((item) => ({ description: item.description, amountCents: Math.round(item.amountDollars * 100) }));
+  const amountCents = lineItems.reduce((sum, item) => sum + item.amountCents, 0);
+  const description = lineItems.map((item) => item.description).join("; ");
   const daysUntilDue = Math.max(1, Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86_400_000));
 
   try {
     const authUser = await findOrCreateClient(email);
     const customerId = await findOrCreateStripeCustomer(authUser.id, email);
 
-    // Create the (empty) invoice first, then attach the line item to it
+    // Create the (empty) invoice first, then attach each line item to it
     // explicitly via `invoice: draft.id` — relying on Stripe to
     // auto-attach "pending" items created beforehand is version-dependent
     // and silently produced a $0 invoice in testing.
@@ -49,13 +55,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       auto_advance: true,
     });
 
-    await stripe.invoiceItems.create({
-      customer: customerId,
-      invoice: draft.id,
-      amount: amountCents,
-      currency: "usd",
-      description,
-    });
+    for (const item of lineItems) {
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        invoice: draft.id,
+        amount: item.amountCents,
+        currency: "usd",
+        description: item.description,
+      });
+    }
 
     let invoice = await stripe.invoices.finalizeInvoice(draft.id!);
 
