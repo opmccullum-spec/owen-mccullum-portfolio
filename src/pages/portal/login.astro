@@ -70,6 +70,7 @@ if (user && error !== "missing_profile") {
       <p class="inq-feedback inq-error inq-error--submit" role="alert" hidden>
         Something went wrong sending that link. Please try again in a moment.
       </p>
+      <p class="inq-feedback inq-error" id="admin-account-error" role="alert" hidden></p>
 
       <p class="inq-note inq-initial">
         Not a client yet? <a href="/contact">Get in touch</a> to book a session.
@@ -93,10 +94,22 @@ if (user && error !== "missing_profile") {
     const verifyBtn = form.querySelector<HTMLButtonElement>(".inq-verify")!;
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const next = form.dataset.next || "/portal";
+    const adminErrorBox = form.querySelector<HTMLElement>("#admin-account-error")!;
+
+    function showAdminAccountError() {
+      adminErrorBox.textContent = "";
+      adminErrorBox.append(
+        "That's an admin account — log in at the ",
+        Object.assign(document.createElement("a"), { href: "/admin/login", textContent: "admin login page" }),
+        " instead.",
+      );
+      adminErrorBox.hidden = false;
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errorBox.hidden = true;
+      adminErrorBox.hidden = true;
 
       if (!emailRe.test(email.value.trim())) {
         const wrap = email.closest(".inq-field")!;
@@ -116,7 +129,18 @@ if (user && error !== "missing_profile") {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.value.trim(), next }),
         });
-        if (!res.ok) throw new Error("request failed");
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (data.error === "admin_account") {
+            showAdminAccountError();
+          } else {
+            errorBox.hidden = false;
+          }
+          submit.disabled = false;
+          submit.textContent = original;
+          return;
+        }
 
         form
           .querySelectorAll(".inq-initial")
@@ -150,7 +174,16 @@ if (user && error !== "missing_profile") {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: email.value.trim(), token: value }),
         });
-        if (!res.ok) throw new Error("verify failed");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data.error === "admin_account") {
+            showAdminAccountError();
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = original;
+            return;
+          }
+          throw new Error("verify failed");
+        }
         window.location.href = next;
       } catch {
         wrap.classList.add("invalid");

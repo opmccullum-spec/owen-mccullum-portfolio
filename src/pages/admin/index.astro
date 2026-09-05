@@ -74,6 +74,7 @@ function formatSession(startsAt: string, endsAt: string) {
         </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
+        <input type="hidden" name="redirectTo" value="/admin/login" />
         <button type="submit" class="inq-note portal-signout-btn">Sign out</button>
       </form>
     </header>

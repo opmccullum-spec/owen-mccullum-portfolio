@@ -2,6 +2,7 @@ export const prerender = false;
 
 import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { safeRedirectPath } from "../../../lib/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -18,6 +19,18 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
   if (!EMAIL_RE.test(email)) {
     return new Response(JSON.stringify({ ok: false, error: "invalid_email" }), { status: 400 });
   }
+
+  // Admin accounts log in with a password (see /admin/login), not this
+  // passwordless flow — refuse before ever issuing an OTP.
+  const { data: adminProfile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin")
+    .eq("email", email)
+    .maybeSingle();
+  if (adminProfile?.is_admin) {
+    return new Response(JSON.stringify({ ok: false, error: "admin_account" }), { status: 403 });
+  }
+
   const next = safeRedirectPath(
     typeof body === "object" && body && "next" in body ? String((body as any).next) : null,
   );

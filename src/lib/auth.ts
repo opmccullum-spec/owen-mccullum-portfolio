@@ -65,18 +65,22 @@ export async function requireUser(Astro: AstroGlobal): Promise<AuthedContext | R
 }
 
 /**
- * Guard for /admin pages. Same as requireUser, but also checks
- * profiles.is_admin and bounces non-admins back to their own portal.
+ * Guard for /admin pages. Admin has its own password-based login (separate
+ * from the client portal's passwordless one), so an unauthenticated visit
+ * bounces to /admin/login, not /portal/login. A logged-in non-admin (a
+ * regular client) bounces to their own portal instead.
  */
 export async function requireAdmin(Astro: AstroGlobal): Promise<AuthedContext | Response> {
-  const auth = await requireUser(Astro);
-  if (auth instanceof Response) return auth;
+  const result = await getAuthedProfile(Astro.request, Astro.cookies);
+  const next = encodeURIComponent(Astro.url.pathname + Astro.url.search);
+  if (result.status === "no_user") return Astro.redirect(`/admin/login?next=${next}`);
+  if (result.status === "no_profile") return Astro.redirect(`/admin/login?error=missing_profile&next=${next}`);
 
-  if (!auth.profile.is_admin) {
+  if (!result.ctx.profile.is_admin) {
     return Astro.redirect("/portal");
   }
 
-  return auth;
+  return result.ctx;
 }
 
 /**

@@ -1,0 +1,122 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Footer from "../../components/Footer.astro";
+import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { safeRedirectPath } from "../../lib/auth";
+
+const next = safeRedirectPath(Astro.url.searchParams.get("next")) ?? "/admin";
+const error = Astro.url.searchParams.get("error");
+const errorMessage = error === "missing_profile" ? "Something went wrong loading your account. Please try again." : null;
+
+// Already logged in as admin? Skip straight to where they were headed.
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+if (user) {
+  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single();
+  if (profile?.is_admin) return Astro.redirect(next);
+}
+---
+
+<BaseLayout title="Admin Login — Owen McCullum" description="Log in to the admin dashboard.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">Log in.</h1>
+      <p class="page-lede">Admin access only.</p>
+    </header>
+
+    <form class="inquire reveal" id="admin-login-form" novalidate data-next={next}>
+      <p class="inq-eyebrow">Log in</p>
+
+      <div class="inq-field">
+        <label for="admin-email">Email</label>
+        <input id="admin-email" name="email" type="email" autocomplete="username" required />
+        <span class="inq-err" aria-live="polite"></span>
+      </div>
+
+      <div class="inq-field">
+        <label for="admin-password">Password</label>
+        <input id="admin-password" name="password" type="password" autocomplete="current-password" required />
+        <span class="inq-err" aria-live="polite"></span>
+      </div>
+
+      <button class="inq-submit" type="submit">Log in</button>
+
+      {errorMessage && (
+        <p class="inq-feedback inq-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+      <p class="inq-feedback inq-error" id="admin-login-error" role="alert" hidden></p>
+
+      <p class="inq-note"><a href="/admin/forgot-password">Forgot your password?</a></p>
+    </form>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<script>
+  function initAdminLogin() {
+    const form = document.querySelector<HTMLFormElement>("#admin-login-form");
+    if (!form || form.dataset.init) return;
+    form.dataset.init = "1";
+
+    const email = form.querySelector<HTMLInputElement>("[name=email]")!;
+    const password = form.querySelector<HTMLInputElement>("[name=password]")!;
+    const submit = form.querySelector<HTMLButtonElement>(".inq-submit")!;
+    const errorBox = form.querySelector<HTMLElement>("#admin-login-error")!;
+    const next = form.dataset.next || "/admin";
+
+    const ERROR_MESSAGES: Record<string, string> = {
+      invalid_credentials: "That email and password don't match. Please try again.",
+      not_admin: "That account doesn't have admin access.",
+      invalid_input: "Please enter both an email and a password.",
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+
+      const original = submit.textContent;
+      submit.disabled = true;
+      submit.textContent = "Logging in…";
+
+      try {
+        const res = await fetch("/api/auth/admin-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.value.trim(), password: password.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok) {
+          errorBox.textContent = ERROR_MESSAGES[data.error] ?? "Something went wrong logging in. Please try again.";
+          errorBox.hidden = false;
+          submit.disabled = false;
+          submit.textContent = original;
+          return;
+        }
+
+        window.location.href = next;
+      } catch {
+        errorBox.textContent = "Something went wrong logging in. Please try again.";
+        errorBox.hidden = false;
+        submit.disabled = false;
+        submit.textContent = original;
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAdminLogin, { once: true });
+  } else {
+    initAdminLogin();
+  }
+  document.addEventListener("astro:page-load", initAdminLogin);
+</script>

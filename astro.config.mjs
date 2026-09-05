@@ -11,6 +11,11 @@ import vercel from "@astrojs/vercel";
 export default defineConfig({
   // The live origin — used to build absolute URLs (og:image, canonical).
   site: "https://owenmcc.photo",
+  // "Pricing" is now the "Booking" page in the nav — keep old /pricing
+  // links and bookmarks working by sending them to /book.
+  redirects: {
+    "/pricing": "/book",
+  },
   integrations: [react()],
   adapter: vercel(),
   image: {

@@ -40,5 +40,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   await ensureProfile(data.user);
 
+  // Belt-and-suspenders: send-magic-link already refuses to issue an OTP for
+  // an admin account, but if one were ever verified anyway, don't leave them
+  // signed in — admin only logs in with a password (see /admin/login).
+  const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", data.user.id).single();
+  if (profile?.is_admin) {
+    await supabase.auth.signOut();
+    return new Response(JSON.stringify({ ok: false, error: "admin_account" }), { status: 403 });
+  }
+
   return new Response(JSON.stringify({ ok: true }), { status: 200 });
 };
