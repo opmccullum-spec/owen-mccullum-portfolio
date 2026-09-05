@@ -1480,6 +1480,58 @@ html.js .wordmark.wm-done .wm-l {
   color: var(--ink);
 }
 
+/* Invoice form: repeatable line-item rows (admin only) */
+.inv-items {
+  display: grid;
+  gap: 20px;
+}
+.inv-item-row {
+  display: grid;
+  grid-template-columns: 1fr 140px auto;
+  gap: 16px;
+  align-items: end;
+}
+.inv-item-remove {
+  font-family: var(--mono);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--mute);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  padding: 9px 4px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.inv-item-remove:hover:not(:disabled) {
+  color: var(--ink);
+}
+.inv-item-remove:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.inv-total {
+  margin-top: -10px;
+}
+.inv-total strong {
+  color: var(--ink);
+}
+@media (max-width: 640px) {
+  .inv-item-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "desc remove" "amt remove";
+  }
+  .inv-item-desc {
+    grid-area: desc;
+  }
+  .inv-item-amt {
+    grid-area: amt;
+  }
+  .inv-item-remove {
+    grid-area: remove;
+  }
+}
+
 @media (max-width: 860px) {
   .series-head {
     grid-template-columns: 1fr;

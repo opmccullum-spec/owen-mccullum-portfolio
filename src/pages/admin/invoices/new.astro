@@ -30,7 +30,7 @@ const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
     <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
 
-    <form class="inquire reveal" method="POST" action="/api/admin/invoices/create" novalidate>
+    <form class="inquire reveal" method="POST" action="/api/admin/invoices/create" novalidate id="invoice-form">
       <p class="inq-eyebrow">Invoice details</p>
 
       <div class="inq-field">
@@ -38,15 +38,25 @@ const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         <input id="inv-email" name="email" type="email" autocomplete="off" required />
       </div>
 
-      <div class="inq-field">
-        <label for="inv-description">Description</label>
-        <input id="inv-description" name="description" type="text" placeholder="e.g. Fall portrait session" required />
+      <div class="inv-items">
+        <div class="inv-item-row">
+          <div class="inq-field inv-item-desc">
+            <label>Description</label>
+            <input name="itemDescription[]" type="text" placeholder="e.g. Fall portrait session" required />
+          </div>
+          <div class="inq-field inv-item-amt">
+            <label>Amount (USD)</label>
+            <input name="itemAmount[]" type="number" min="0.01" step="0.01" placeholder="250.00" required />
+          </div>
+          <button type="button" class="inv-item-remove" aria-label="Remove line item" disabled>&times;</button>
+        </div>
       </div>
 
-      <div class="inq-field">
-        <label for="inv-amount">Amount (USD)</label>
-        <input id="inv-amount" name="amount" type="number" min="1" step="0.01" placeholder="250.00" required />
-      </div>
+      <button type="button" class="inq-note inv-add-item" style="justify-self: start; background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;">
+        + Add another line item
+      </button>
+
+      <p class="inq-note inv-total">Total: <strong id="inv-total-amt">$0.00</strong></p>
 
       <div class="inq-field">
         <label for="inv-due">Due date</label>
@@ -64,3 +74,63 @@ const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
   </main>
   <Footer />
 </BaseLayout>
+
+<script>
+  function initInvoiceForm() {
+    const form = document.querySelector<HTMLFormElement>("#invoice-form");
+    if (!form || form.dataset.init) return;
+    form.dataset.init = "1";
+
+    const items = form.querySelector<HTMLElement>(".inv-items")!;
+    const addBtn = form.querySelector<HTMLButtonElement>(".inv-add-item")!;
+    const totalEl = form.querySelector<HTMLElement>("#inv-total-amt")!;
+
+    function rowTemplate(): HTMLElement {
+      const row = items.querySelector(".inv-item-row")!.cloneNode(true) as HTMLElement;
+      row.querySelectorAll("input").forEach((input) => (input.value = ""));
+      return row;
+    }
+
+    function syncRemoveButtons() {
+      const rows = items.querySelectorAll<HTMLElement>(".inv-item-row");
+      rows.forEach((row) => {
+        const btn = row.querySelector<HTMLButtonElement>(".inv-item-remove")!;
+        btn.disabled = rows.length <= 1;
+      });
+    }
+
+    function updateTotal() {
+      let total = 0;
+      items.querySelectorAll<HTMLInputElement>('input[name="itemAmount[]"]').forEach((input) => {
+        const n = parseFloat(input.value);
+        if (!isNaN(n) && n > 0) total += n;
+      });
+      totalEl.textContent = total.toLocaleString("en-US", { style: "currency", currency: "USD" });
+    }
+
+    addBtn.addEventListener("click", () => {
+      items.appendChild(rowTemplate());
+      syncRemoveButtons();
+    });
+
+    items.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".inv-item-remove");
+      if (!btn || btn.disabled) return;
+      btn.closest(".inv-item-row")!.remove();
+      syncRemoveButtons();
+      updateTotal();
+    });
+
+    items.addEventListener("input", updateTotal);
+
+    syncRemoveButtons();
+    updateTotal();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initInvoiceForm, { once: true });
+  } else {
+    initInvoiceForm();
+  }
+  document.addEventListener("astro:page-load", initInvoiceForm);
+</script>
