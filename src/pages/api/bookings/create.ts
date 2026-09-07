@@ -1,11 +1,13 @@
 export const prerender = false;
 
 import type { APIRoute } from "astro";
+import { formatInTimeZone } from "date-fns-tz";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { findOrCreateClient } from "../../../lib/supabase/findOrCreateClient";
 import { isCalendarBusy } from "../../../lib/googleCalendar";
 import { sendEmail } from "../../../lib/resend";
 import { bookingRequestOwnerEmail } from "../../../lib/emailTemplates";
+import { calculatePrice, isBookingCategory, CATEGORY_LABELS } from "../../../lib/pricing";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,6 +43,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return new Response(JSON.stringify({ ok: false, error: "invalid_input" }), { status: 400 });
   }
 
+  // From the /book pricing calculator — optional (a request could in theory
+  // arrive without it) and never trusted for the actual price: we recompute
+  // that ourselves from the category/hours/date below.
+  const categoryRaw = get("category");
+  const hoursRaw = Number(get("hours"));
+  const category = isBookingCategory(categoryRaw) ? categoryRaw : null;
+  const hours = Number.isFinite(hoursRaw) && hoursRaw > 0 ? hoursRaw : null;
+
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || clientAddress || null;
 
   try {
@@ -52,6 +62,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     if (settingsErr || !settings) throw settingsErr ?? new Error("booking_settings missing");
 
     const endISO = new Date(startDate.getTime() + settings.session_duration_minutes * 60_000).toISOString();
+
+    // The calendar day the session actually falls on in Owen's own
+    // timezone — not wherever the visitor happens to be — since that's
+    // what decides whether the federal-holiday surcharge applies.
+    const estimate =
+      category && hours
+        ? calculatePrice(category, hours, formatInTimeZone(startDate, settings.timezone, "yyyy-MM-dd"))
+        : null;
 
     // Soft throttle: too many requests from this IP recently, regardless of
     // which email they claim — a real client asking about several dates
@@ -86,6 +104,9 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       status: "pending",
       note: note || null,
       requester_ip: ip,
+      category: estimate?.category ?? null,
+      hours: estimate?.hours ?? null,
+      estimated_price_cents: estimate?.totalCents ?? null,
     });
 
     if (insertErr) {
@@ -105,6 +126,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
         endISO,
         timezone: settings.timezone,
         adminUrl: `${new URL(request.url).origin}/admin`,
+        estimate: estimate
+          ? {
+              categoryLabel: CATEGORY_LABELS[estimate.category],
+              hours: estimate.hours,
+              totalCents: estimate.totalCents,
+              isHoliday: estimate.isHoliday,
+            }
+          : null,
       });
       await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html });
     } catch (err) {

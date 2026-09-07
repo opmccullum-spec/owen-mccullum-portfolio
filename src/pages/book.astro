@@ -25,6 +25,35 @@ const prefillEmail = session?.user.email ?? "";
       </p>
     </header>
 
+    <section class="calc reveal" id="price-calc" aria-label="Price calculator">
+      <p class="inq-eyebrow">Estimate your price</p>
+
+      <div class="calc-cats" role="group" aria-label="Session type">
+        <button type="button" class="calc-cat active" data-category="family">Family</button>
+        <button type="button" class="calc-cat" data-category="events">Events</button>
+        <button type="button" class="calc-cat" data-category="proposals">Proposals</button>
+        <button type="button" class="calc-cat" data-category="portraits">Portraits &amp; Headshots</button>
+      </div>
+
+      <div class="calc-row">
+        <div class="inq-field calc-date-field">
+          <label for="calc-date">Date</label>
+          <input id="calc-date" type="date" />
+        </div>
+        <div class="inq-field calc-hours-field">
+          <label for="calc-hours-value">Hours</label>
+          <div class="calc-stepper">
+            <button type="button" class="calc-step" id="calc-hours-minus" aria-label="Decrease hours">−</button>
+            <span id="calc-hours-value">1</span>
+            <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="inq-note" id="calc-estimate-text">Pick a date to see your estimate.</p>
+      <button type="button" class="inq-note calc-use-btn" id="calc-use-date" hidden>Use this date to book below ↓</button>
+    </section>
+
     <div id="book-app" class="reveal">
       <p id="book-status" class="inq-note">Loading available times…</p>
 
@@ -88,7 +117,8 @@ const prefillEmail = session?.user.email ?? "";
      otherwise beats the browser's default `[hidden]{display:none}` rule
      (an author style always wins over a user-agent one, regardless of
      selector specificity) — so [hidden] needs to be spelled out here. */
-  #book-app [hidden] {
+  #book-app [hidden],
+  #price-calc [hidden] {
     display: none !important;
   }
 
@@ -108,11 +138,195 @@ const prefillEmail = session?.user.email ?? "";
     cursor: pointer;
     text-decoration: underline;
   }
+
+  /* Price calculator */
+  .calc {
+    max-width: 560px;
+    padding-bottom: 40px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .calc-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0 26px;
+  }
+  .calc-cat {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mute);
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition:
+      color 0.2s ease,
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+  .calc-cat:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .calc-cat.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .calc-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .calc-date-field {
+    flex: 1 1 220px;
+  }
+  .calc-hours-field {
+    flex: 0 0 auto;
+  }
+  .calc-stepper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 9px 0;
+  }
+  .calc-stepper span {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    min-width: 1.5ch;
+    text-align: center;
+  }
+  .calc-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: none;
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+  .calc-step:hover:not(:disabled) {
+    border-color: var(--ink);
+  }
+  .calc-step:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  #calc-estimate-text {
+    margin-top: 24px;
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 17px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--ink);
+  }
+  .calc-use-btn {
+    display: inline-block;
+    margin-top: 12px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
 </style>
 
 <script>
+  import { calculatePrice, CATEGORY_LABELS, MIN_HOURS, MAX_HOURS, type BookingCategory } from "../lib/pricing";
+
   type Slot = { startISO: string; endISO: string };
   type Selected = { startISO: string; label: string };
+
+  // Shared with the booking form's submit handler below, so the estimate
+  // the visitor saw is exactly what gets attached to their request.
+  let calcCategory: BookingCategory = "family";
+  let calcHours = 1;
+
+  function money(cents: number) {
+    return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  }
+
+  function initCalculator() {
+    const root = document.querySelector<HTMLElement>("#price-calc");
+    if (!root || root.dataset.init) return;
+    root.dataset.init = "1";
+
+    const catButtons = Array.from(root.querySelectorAll<HTMLButtonElement>(".calc-cat"));
+    const dateInput = root.querySelector<HTMLInputElement>("#calc-date")!;
+    const hoursValueEl = root.querySelector<HTMLElement>("#calc-hours-value")!;
+    const minusBtn = root.querySelector<HTMLButtonElement>("#calc-hours-minus")!;
+    const plusBtn = root.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
+    const estimateText = root.querySelector<HTMLElement>("#calc-estimate-text")!;
+    const useDateBtn = root.querySelector<HTMLButtonElement>("#calc-use-date")!;
+
+    dateInput.min = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+
+    function update() {
+      hoursValueEl.textContent = String(calcHours);
+      minusBtn.disabled = calcHours <= MIN_HOURS;
+      plusBtn.disabled = calcHours >= MAX_HOURS;
+
+      if (!dateInput.value) {
+        estimateText.textContent = "Pick a date to see your estimate.";
+        useDateBtn.hidden = true;
+        return;
+      }
+
+      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
+      estimateText.textContent = "";
+      estimateText.append(
+        `${CATEGORY_LABELS[calcCategory]}, ${calcHours} hour${calcHours === 1 ? "" : "s"}: `,
+        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
+        price.isHoliday ? " (includes a 20% holiday rate)" : "",
+      );
+      useDateBtn.hidden = false;
+    }
+
+    catButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        calcCategory = btn.dataset.category as BookingCategory;
+        catButtons.forEach((b) => b.classList.toggle("active", b === btn));
+        update();
+      });
+    });
+
+    minusBtn.addEventListener("click", () => {
+      calcHours = Math.max(MIN_HOURS, calcHours - 1);
+      update();
+    });
+    plusBtn.addEventListener("click", () => {
+      calcHours = Math.min(MAX_HOURS, calcHours + 1);
+      update();
+    });
+    dateInput.addEventListener("change", update);
+
+    useDateBtn.addEventListener("click", () => {
+      const bookDayInput = document.querySelector<HTMLInputElement>("#day-input");
+      const bookApp = document.querySelector<HTMLElement>("#book-app");
+      if (bookDayInput && dateInput.value) {
+        bookDayInput.value = dateInput.value;
+        bookDayInput.dispatchEvent(new Event("change"));
+      }
+      bookApp?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    update();
+  }
 
   function initBooking() {
     const app = document.querySelector<HTMLElement>("#book-app");
@@ -283,6 +497,8 @@ const prefillEmail = session?.user.email ?? "";
             note: formData.get("note"),
             company: formData.get("company"),
             startISO: selected.startISO,
+            category: calcCategory,
+            hours: calcHours,
           }),
         });
         const data = await res.json();
@@ -325,10 +541,15 @@ const prefillEmail = session?.user.email ?? "";
     loadSlots();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initBooking, { once: true });
-  } else {
+  function initAll() {
+    initCalculator();
     initBooking();
   }
-  document.addEventListener("astro:page-load", initBooking);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll, { once: true });
+  } else {
+    initAll();
+  }
+  document.addEventListener("astro:page-load", initAll);
 </script>
