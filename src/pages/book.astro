@@ -51,17 +51,11 @@ const prefillEmail = session?.user.email ?? "";
       </div>
 
       <p class="inq-note" id="calc-estimate-text">Pick a date to see your estimate.</p>
-      <button type="button" class="inq-note calc-use-btn" id="calc-use-date" hidden>Use this date to book below ↓</button>
     </section>
 
     <div id="book-app" class="reveal">
-      <p id="book-status" class="inq-note">Loading available times…</p>
-
-      <div id="slot-picker" class="inquire" hidden>
-        <div class="inq-field">
-          <label for="day-input">Choose a day</label>
-          <input id="day-input" type="date" />
-        </div>
+      <div id="slot-picker" class="inquire">
+        <p id="book-status" class="inq-note">Loading available times…</p>
 
         <div class="inq-field" id="time-field" hidden>
           <label for="slot-select">Choose a time</label>
@@ -232,15 +226,6 @@ const prefillEmail = session?.user.email ?? "";
     text-transform: none;
     color: var(--ink);
   }
-  .calc-use-btn {
-    display: inline-block;
-    margin-top: 12px;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    text-decoration: underline;
-  }
 </style>
 
 <script>
@@ -249,93 +234,37 @@ const prefillEmail = session?.user.email ?? "";
   type Slot = { startISO: string; endISO: string };
   type Selected = { startISO: string; label: string };
 
-  // Shared with the booking form's submit handler below, so the estimate
-  // the visitor saw is exactly what gets attached to their request.
-  let calcCategory: BookingCategory = "family";
-  let calcHours = 1;
-
   function money(cents: number) {
     return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
   }
 
-  function initCalculator() {
-    const root = document.querySelector<HTMLElement>("#price-calc");
-    if (!root || root.dataset.init) return;
-    root.dataset.init = "1";
-
-    const catButtons = Array.from(root.querySelectorAll<HTMLButtonElement>(".calc-cat"));
-    const dateInput = root.querySelector<HTMLInputElement>("#calc-date")!;
-    const hoursValueEl = root.querySelector<HTMLElement>("#calc-hours-value")!;
-    const minusBtn = root.querySelector<HTMLButtonElement>("#calc-hours-minus")!;
-    const plusBtn = root.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
-    const estimateText = root.querySelector<HTMLElement>("#calc-estimate-text")!;
-    const useDateBtn = root.querySelector<HTMLButtonElement>("#calc-use-date")!;
-
-    dateInput.min = (() => {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    })();
-
-    function update() {
-      hoursValueEl.textContent = String(calcHours);
-      minusBtn.disabled = calcHours <= MIN_HOURS;
-      plusBtn.disabled = calcHours >= MAX_HOURS;
-
-      if (!dateInput.value) {
-        estimateText.textContent = "Pick a date to see your estimate.";
-        useDateBtn.hidden = true;
-        return;
-      }
-
-      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
-      estimateText.textContent = "";
-      estimateText.append(
-        `${CATEGORY_LABELS[calcCategory]}, ${calcHours} hour${calcHours === 1 ? "" : "s"}: `,
-        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
-        price.isHoliday ? " (includes a 20% holiday rate)" : "",
-      );
-      useDateBtn.hidden = false;
-    }
-
-    catButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        calcCategory = btn.dataset.category as BookingCategory;
-        catButtons.forEach((b) => b.classList.toggle("active", b === btn));
-        update();
-      });
-    });
-
-    minusBtn.addEventListener("click", () => {
-      calcHours = Math.max(MIN_HOURS, calcHours - 1);
-      update();
-    });
-    plusBtn.addEventListener("click", () => {
-      calcHours = Math.min(MAX_HOURS, calcHours + 1);
-      update();
-    });
-    dateInput.addEventListener("change", update);
-
-    useDateBtn.addEventListener("click", () => {
-      const bookDayInput = document.querySelector<HTMLInputElement>("#day-input");
-      const bookApp = document.querySelector<HTMLElement>("#book-app");
-      if (bookDayInput && dateInput.value) {
-        bookDayInput.value = dateInput.value;
-        bookDayInput.dispatchEvent(new Event("change"));
-      }
-      bookApp?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-
-    update();
+  // Local (visitor's own timezone) YYYY-MM-DD, matching what a native
+  // <input type="date"> produces — so a slot's day lines up with the day
+  // the visitor actually picked in the calendar.
+  function localDateKey(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
   }
 
-  function initBooking() {
+  function initAll() {
     const app = document.querySelector<HTMLElement>("#book-app");
-    if (!app || app.dataset.init) return;
+    const calc = document.querySelector<HTMLElement>("#price-calc");
+    if (!app || !calc || app.dataset.init) return;
     app.dataset.init = "1";
 
-    const statusEl = document.querySelector<HTMLElement>("#book-status")!;
+    // One shared date input drives both the price estimate and which times
+    // are offered below — no second "choose a day" field.
+    const dateInput = document.querySelector<HTMLInputElement>("#calc-date")!;
+    const catButtons = Array.from(calc.querySelectorAll<HTMLButtonElement>(".calc-cat"));
+    const hoursValueEl = document.querySelector<HTMLElement>("#calc-hours-value")!;
+    const minusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-minus")!;
+    const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
+    const estimateText = document.querySelector<HTMLElement>("#calc-estimate-text")!;
+
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
-    const dayInputEl = document.querySelector<HTMLInputElement>("#day-input")!;
+    const statusEl = document.querySelector<HTMLElement>("#book-status")!;
     const timeFieldEl = document.querySelector<HTMLElement>("#time-field")!;
     const selectEl = document.querySelector<HTMLSelectElement>("#slot-select")!;
     const timeHintEl = document.querySelector<HTMLElement>("#time-hint")!;
@@ -347,44 +276,31 @@ const prefillEmail = session?.user.email ?? "";
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
     const changeBtn = document.querySelector<HTMLButtonElement>("#book-change")!;
 
+    let calcCategory: BookingCategory = "family";
+    let calcHours = 1;
     let selected: Selected | null = null;
     let slotsByDay = new Map<string, Slot[]>();
+    let slotsLoaded = false;
+
+    dateInput.min = localDateKey(new Date());
 
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
     }
 
-    // Local (visitor's own timezone) YYYY-MM-DD, matching what a native
-    // <input type="date"> produces — so a slot's day lines up with the day
-    // the visitor actually picked in the calendar.
-    function localDateKey(d: Date): string {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    }
-
-    function resetPicker() {
-      dayInputEl.value = "";
-      timeFieldEl.hidden = true;
-      selectEl.value = "";
-      otherFieldEl.hidden = true;
-      otherInputEl.value = "";
-      pickerEl.hidden = false;
-    }
-
-    function renderSlots(slots: Slot[]) {
-      slotsByDay = new Map();
-      for (const slot of slots) {
-        const key = localDateKey(new Date(slot.startISO));
-        if (!slotsByDay.has(key)) slotsByDay.set(key, []);
-        slotsByDay.get(key)!.push(slot);
+    function updateEstimate() {
+      if (!dateInput.value) {
+        estimateText.textContent = "Pick a date to see your estimate.";
+        return;
       }
-
-      dayInputEl.min = localDateKey(new Date());
-      statusEl.hidden = true;
-      pickerEl.hidden = false;
+      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
+      estimateText.textContent = "";
+      estimateText.append(
+        `${CATEGORY_LABELS[calcCategory]}, ${calcHours} hour${calcHours === 1 ? "" : "s"}: `,
+        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
+        price.isHoliday ? " (includes a 20% holiday rate)" : "",
+      );
     }
 
     function populateTimesForDay(dateKey: string) {
@@ -404,8 +320,28 @@ const prefillEmail = session?.user.email ?? "";
       selectEl.add(new Option("Other — I'll specify a time", "other"));
 
       timeHintEl.hidden = daySlots.length > 0;
-      otherFieldEl.hidden = true;
+      statusEl.hidden = true;
       timeFieldEl.hidden = false;
+    }
+
+    // Re-derives what the "choose a time" area should show — whether we're
+    // still waiting on availability, no date has been picked yet, or a
+    // date is picked and its times are ready.
+    function updateTimeOptions() {
+      if (!dateInput.value) {
+        statusEl.textContent = "Pick a date above to see available times.";
+        statusEl.hidden = false;
+        timeFieldEl.hidden = true;
+        otherFieldEl.hidden = true;
+        return;
+      }
+      if (!slotsLoaded) {
+        statusEl.textContent = "Loading available times…";
+        statusEl.hidden = false;
+        timeFieldEl.hidden = true;
+        return;
+      }
+      populateTimesForDay(dateInput.value);
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -424,15 +360,34 @@ const prefillEmail = session?.user.email ?? "";
       errorEl.hidden = true;
     }
 
-    dayInputEl.addEventListener("change", () => {
+    catButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        calcCategory = btn.dataset.category as BookingCategory;
+        catButtons.forEach((b) => b.classList.toggle("active", b === btn));
+        updateEstimate();
+      });
+    });
+    minusBtn.addEventListener("click", () => {
+      calcHours = Math.max(MIN_HOURS, calcHours - 1);
+      hoursValueEl.textContent = String(calcHours);
+      minusBtn.disabled = calcHours <= MIN_HOURS;
+      plusBtn.disabled = calcHours >= MAX_HOURS;
+      updateEstimate();
+    });
+    plusBtn.addEventListener("click", () => {
+      calcHours = Math.min(MAX_HOURS, calcHours + 1);
+      hoursValueEl.textContent = String(calcHours);
+      minusBtn.disabled = calcHours <= MIN_HOURS;
+      plusBtn.disabled = calcHours >= MAX_HOURS;
+      updateEstimate();
+    });
+
+    dateInput.addEventListener("change", () => {
       selectEl.value = "";
       otherFieldEl.hidden = true;
       otherInputEl.value = "";
-      if (!dayInputEl.value) {
-        timeFieldEl.hidden = true;
-        return;
-      }
-      populateTimesForDay(dayInputEl.value);
+      updateEstimate();
+      updateTimeOptions();
     });
 
     selectEl.addEventListener("change", () => {
@@ -449,11 +404,11 @@ const prefillEmail = session?.user.email ?? "";
     });
 
     otherInputEl.addEventListener("change", () => {
-      if (!otherInputEl.value || !dayInputEl.value) return;
+      if (!otherInputEl.value || !dateInput.value) return;
       // Combining the calendar day with a plain HH:MM has no timezone info,
       // so the browser (correctly) parses it as the visitor's own local
       // wall-clock time on that day.
-      const d = new Date(`${dayInputEl.value}T${otherInputEl.value}:00`);
+      const d = new Date(`${dateInput.value}T${otherInputEl.value}:00`);
       if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
         showError("Please choose a time in the future.");
         return;
@@ -463,8 +418,12 @@ const prefillEmail = session?.user.email ?? "";
 
     changeBtn.addEventListener("click", () => {
       formEl.hidden = true;
-      resetPicker();
       selected = null;
+      selectEl.value = "";
+      otherFieldEl.hidden = true;
+      otherInputEl.value = "";
+      pickerEl.hidden = false;
+      updateTimeOptions();
     });
 
     async function loadSlots() {
@@ -472,9 +431,17 @@ const prefillEmail = session?.user.email ?? "";
         const res = await fetch("/api/availability");
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "unavailable");
-        renderSlots(data.slots as Slot[]);
+        slotsByDay = new Map();
+        for (const slot of data.slots as Slot[]) {
+          const key = localDateKey(new Date(slot.startISO));
+          if (!slotsByDay.has(key)) slotsByDay.set(key, []);
+          slotsByDay.get(key)!.push(slot);
+        }
+        slotsLoaded = true;
+        updateTimeOptions();
       } catch {
         statusEl.textContent = "Couldn't load available times — please try again shortly.";
+        statusEl.hidden = false;
       }
     }
 
@@ -523,8 +490,10 @@ const prefillEmail = session?.user.email ?? "";
         if (data.error === "slot_taken") {
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
-          resetPicker();
           selected = null;
+          selectEl.value = "";
+          otherFieldEl.hidden = true;
+          pickerEl.hidden = false;
           loadSlots();
         } else if (data.error === "rate_limited") {
           showError("Too many requests from here recently — please email Owen directly for now.");
@@ -538,12 +507,9 @@ const prefillEmail = session?.user.email ?? "";
       }
     });
 
+    updateEstimate();
+    updateTimeOptions();
     loadSlots();
-  }
-
-  function initAll() {
-    initCalculator();
-    initBooking();
   }
 
   if (document.readyState === "loading") {
