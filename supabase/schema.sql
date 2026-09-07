@@ -166,6 +166,15 @@ alter table public.bookings add column if not exists note text;
 -- the request, alongside whichever client_id it resolved to.
 alter table public.bookings add column if not exists requester_ip text;
 
+-- Session-type + price estimate from the /book pricing calculator.
+-- Informational only — the actual reserved time slot is unaffected by
+-- `hours`; Owen finalizes real scheduling and billing when he approves the
+-- request. Nullable since older rows (and any request that skips the
+-- calculator) never had one.
+alter table public.bookings add column if not exists category text;
+alter table public.bookings add column if not exists hours integer;
+alter table public.bookings add column if not exists estimated_price_cents integer;
+
 -- Two different visitors can't end up with pending requests for the exact
 -- same start time — whoever's request lands second gets a clear "that slot
 -- was just taken" error instead of silently double-booking Owen's review

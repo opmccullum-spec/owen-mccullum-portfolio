@@ -39,13 +39,18 @@ export function bookingRequestOwnerEmail(params: {
   endISO: string;
   timezone: string;
   adminUrl: string;
+  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean } | null;
 }) {
   const when = formatSessionTime(params.startISO, params.endISO, params.timezone);
+  const estimateLine = params.estimate
+    ? `<p>Estimate: ${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}</p>`
+    : "";
   return {
     subject: `New booking request — ${params.name}`,
     html: wrapEmail(`
       <p>${params.name} (${params.email}) requested a session:</p>
       <p><strong>${when}</strong></p>
+      ${estimateLine}
       ${params.note ? `<p>Note: ${params.note}</p>` : ""}
       <p><a href="${params.adminUrl}">Review it in your admin dashboard →</a></p>
     `),

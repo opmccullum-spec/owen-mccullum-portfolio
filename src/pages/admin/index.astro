@@ -6,6 +6,7 @@ import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { requireAdmin } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase/admin";
+import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -190,6 +191,12 @@ function formatSession(startsAt: string, endsAt: string) {
               {booking.status} · {formatSession(booking.starts_at, booking.ends_at)}
             </p>
             <p class="big">{booking.profiles?.full_name || booking.profiles?.email}</p>
+            {booking.category && booking.hours && booking.estimated_price_cents != null && (
+              <p class="inq-note">
+                Estimate: {CATEGORY_LABELS[booking.category as BookingCategory] ?? booking.category} · {booking.hours}{" "}
+                hour{booking.hours === 1 ? "" : "s"} · {formatAmount(booking.estimated_price_cents)}
+              </p>
+            )}
             {booking.note && <p>{booking.note}</p>}
             {booking.status === "pending" && (
               <p class="inq-note" style="margin-top: 10px;">
