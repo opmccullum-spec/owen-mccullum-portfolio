@@ -94,8 +94,19 @@ import Footer from "../components/Footer.astro";
     display: none !important;
   }
 
-  #slot-picker {
-    margin-top: 24px;
+  /* One consistent rhythm for the whole page: 32px between one field and
+     the next, 8px between a field's own label and its control (matching
+     .inq-field's existing 8px gap, so "Choose a time"/"Your name"/etc.
+     line up with "Date:"/"Hours:" above them). Scoped to this page only —
+     .inquire/.inq-field are shared globally, and other forms shouldn't
+     shift just because this one did. */
+  .inquire {
+    gap: 32px;
+  }
+  #slot-picker,
+  #book-form,
+  #book-confirmation {
+    margin-top: 32px;
   }
   .hp-field {
     position: absolute;
@@ -114,7 +125,7 @@ import Footer from "../components/Footer.astro";
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin: 18px 0 26px;
+    margin: 8px 0 32px;
   }
   .calc-cat {
     font-family: var(--mono);
@@ -142,7 +153,8 @@ import Footer from "../components/Footer.astro";
     color: var(--paper);
   }
   .calc-label {
-    margin-top: 26px;
+    margin-top: 32px;
+    margin-bottom: 8px;
   }
   .calc-date-field input {
     font-family: var(--sans);
