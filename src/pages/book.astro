@@ -41,9 +41,7 @@ import Footer from "../components/Footer.astro";
 
     <div id="book-app" class="reveal">
       <div id="slot-picker" class="inquire">
-        <p id="book-status" class="inq-note">Pick a date above to choose a time.</p>
-
-        <div class="inq-field" id="time-field" hidden>
+        <div class="inq-field" id="time-field">
           <label for="time-input">Choose a time</label>
           <input id="time-input" type="time" />
         </div>
@@ -96,8 +94,19 @@ import Footer from "../components/Footer.astro";
     display: none !important;
   }
 
-  #slot-picker {
-    margin-top: 24px;
+  /* One consistent rhythm for the whole page: 32px between one field and
+     the next, 8px between a field's own label and its control (matching
+     .inq-field's existing 8px gap, so "Choose a time"/"Your name"/etc.
+     line up with "Date:"/"Hours:" above them). Scoped to this page only —
+     .inquire/.inq-field are shared globally, and other forms shouldn't
+     shift just because this one did. */
+  .inquire {
+    gap: 32px;
+  }
+  #slot-picker,
+  #book-form,
+  #book-confirmation {
+    margin-top: 32px;
   }
   .hp-field {
     position: absolute;
@@ -116,7 +125,7 @@ import Footer from "../components/Footer.astro";
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    margin: 18px 0 26px;
+    margin: 8px 0 32px;
   }
   .calc-cat {
     font-family: var(--mono);
@@ -144,7 +153,8 @@ import Footer from "../components/Footer.astro";
     color: var(--paper);
   }
   .calc-label {
-    margin-top: 26px;
+    margin-top: 32px;
+    margin-bottom: 8px;
   }
   .calc-date-field input {
     font-family: var(--sans);
@@ -253,8 +263,6 @@ import Footer from "../components/Footer.astro";
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
 
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
-    const statusEl = document.querySelector<HTMLElement>("#book-status")!;
-    const timeFieldEl = document.querySelector<HTMLElement>("#time-field")!;
     const timeInputEl = document.querySelector<HTMLInputElement>("#time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
@@ -271,18 +279,6 @@ import Footer from "../components/Footer.astro";
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
-    }
-
-    // The time field only makes sense once a day is picked (it needs the
-    // date to combine with the time into a real instant).
-    function updateTimeField() {
-      if (!dateInput.value) {
-        statusEl.hidden = false;
-        timeFieldEl.hidden = true;
-        return;
-      }
-      statusEl.hidden = true;
-      timeFieldEl.hidden = false;
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -337,7 +333,6 @@ import Footer from "../components/Footer.astro";
 
     dateInput.addEventListener("change", () => {
       timeInputEl.value = "";
-      updateTimeField();
     });
 
     timeInputEl.addEventListener("change", () => {
@@ -413,8 +408,6 @@ import Footer from "../components/Footer.astro";
         submitBtn.disabled = false;
       }
     });
-
-    updateTimeField();
   }
 
   if (document.readyState === "loading") {
