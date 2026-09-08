@@ -43,20 +43,10 @@ export const series: Series[] = [
 // filmstrip sequence (left to right). Locations are kept general where the
 // frame doesn't prove a specific place. Photographs with any identifiable
 // likeness are not offered as prints.
-export const photos: Photo[] = [
-  // ── 01 · Portraits ───────────────────────────────────────────
-  { file: "auburn-curls.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "the-smile.jpg",        location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "quiet-companions.jpg", location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "man-and-dog.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "amber-light.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "resting-gaze.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "unicorn-wig.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "bridge-glow.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "yellow-mesh.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "in-thought.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-  { file: "the-red-couch.jpg",    location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
-];
+// Empty for now — starting over on the Portraits photos too. To add one:
+//   1. Drop the file into src/assets/photos/
+//   2. Add a { file, location, series, span, shape } entry below.
+export const photos: Photo[] = [];
 
 /** Photos for one section, in display order. */
 export function photosBySeries(id: SeriesId): Photo[] {

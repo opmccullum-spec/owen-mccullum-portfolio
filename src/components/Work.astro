@@ -6,8 +6,12 @@ import lqip from "../data/lqip.json";
 const lqipMap = lqip as Record<string, string>;
 
 // One representative frame per series (its lead photograph) linking through to
-// that series' own gallery page.
-const covers = series.map((s) => ({ s, cover: photosBySeries(s.id)[0] }));
+// that series' own gallery page. A series with no photos yet (e.g. mid
+// rebuild) has no cover to show, so it's left out rather than crashing on a
+// missing photo.
+const covers = series
+  .map((s) => ({ s, cover: photosBySeries(s.id)[0] }))
+  .filter((c): c is { s: (typeof series)[number]; cover: NonNullable<(typeof c)["cover"]> } => !!c.cover);
 ---
 
 <div class="work" id="work">

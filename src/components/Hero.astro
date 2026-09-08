@@ -1,14 +1,7 @@
 ---
+import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
-import bridgeGlow from "../assets/photos/bridge-glow.jpg";
-import riverBend from "../assets/photos/river-bend.jpg";
-import atTheFence from "../assets/photos/at-the-fence.jpg";
-import theRodeo from "../assets/photos/the-rodeo.jpg";
-import theFountain from "../assets/photos/the-fountain.jpg";
-import crimsonStage from "../assets/photos/crimson-stage.jpg";
-import yellowMesh from "../assets/photos/yellow-mesh.jpg";
-import theSidewalk from "../assets/photos/the-sidewalk.jpg";
 
 const lqipMap = lqip as Record<string, string>;
 
@@ -16,55 +9,56 @@ const lqipMap = lqip as Record<string, string>;
 // to the center of the screen; the centered frame is full size and opaque,
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
-const frames = [
-  { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a lace skirt and cowboy boots leans against a bridge railing at golden hour, city buildings glowing behind her." },
-  { img: riverBend, file: "river-bend.jpg", alt: "Sunlit tree branches hang over a muddy riverbank, rocks visible beneath the water's surface." },
-  { img: atTheFence, file: "at-the-fence.jpg", alt: "A family with young children waits at a security fence in a crowd on a sunny day." },
-  { img: theRodeo, file: "the-rodeo.jpg", alt: "A crowd in patriotic dress looks up and cheers beneath a large 'Rodeo 250' banner, the Capitol dome visible in the distance." },
-  { img: theFountain, file: "the-fountain.jpg", alt: "A boy plays with a soccer ball on a plaza while two adults talk beside a large fountain." },
-  { img: crimsonStage, file: "crimson-stage.jpg", alt: "A dancer in a patterned crop top and cargo pants strikes a pose under red stage lighting, an arm shielding their face." },
-  { img: yellowMesh, file: "yellow-mesh.jpg", alt: "A close portrait of a person with long locs wearing a yellow cut-out mesh tank top against a clear blue sky." },
-  { img: theSidewalk, file: "the-sidewalk.jpg", alt: "An older couple walks arm in arm down a city sidewalk, the woman's tattooed arm visible." },
-];
+//
+// Empty for now — starting over on the carousel photos. To add one back:
+//   1. Drop the file into src/assets/photos/
+//   2. import it above, then add { img, file, alt } below.
+const frames: { img: ImageMetadata; file: string; alt: string }[] = [];
 ---
 
 <section class="hero">
-  <div class="hero-strip" role="list" tabindex="0" aria-label="Featured photographs — scroll to advance">
-    {
-      frames.map((f, i) => (
-        <figure
-          class={`hero-frame${i === 0 ? " is-center" : ""}`}
-          role="listitem"
-          data-index={i}
-        >
-          <span class="hero-ph" style={`background-image:url("${lqipMap[f.file]}")`}>
-            <Image
-              class="blurup"
-              src={f.img}
-              alt={f.alt}
-              widths={[640, 1024, 1600, 2200]}
-              sizes="(max-width: 860px) 90vw, 60vw"
-              quality={88}
-              loading={i <= 1 ? "eager" : "lazy"}
-              fetchpriority={i === 0 ? "high" : "auto"}
-            />
-          </span>
-        </figure>
-      ))
-    }
-  </div>
+  {
+    frames.length > 0 && (
+      <>
+        <div class="hero-strip" role="list" tabindex="0" aria-label="Featured photographs — scroll to advance">
+          {
+            frames.map((f, i) => (
+              <figure
+                class={`hero-frame${i === 0 ? " is-center" : ""}`}
+                role="listitem"
+                data-index={i}
+              >
+                <span class="hero-ph" style={`background-image:url("${lqipMap[f.file]}")`}>
+                  <Image
+                    class="blurup"
+                    src={f.img}
+                    alt={f.alt}
+                    widths={[640, 1024, 1600, 2200]}
+                    sizes="(max-width: 860px) 90vw, 60vw"
+                    quality={88}
+                    loading={i <= 1 ? "eager" : "lazy"}
+                    fetchpriority={i === 0 ? "high" : "auto"}
+                  />
+                </span>
+              </figure>
+            ))
+          }
+        </div>
 
-  <div class="hero-bar">
-    <div class="hero-nav">
-      <button type="button" class="hero-arrow hero-prev" aria-label="Previous photograph" disabled>
-        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 1.5 L3 6 L7.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-      </button>
-      <span class="hero-count"><span class="hero-cur">1</span> / {frames.length}</span>
-      <button type="button" class="hero-arrow hero-next" aria-label="Next photograph">
-        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 1.5 L9 6 L4.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
-      </button>
-    </div>
-  </div>
+        <div class="hero-bar">
+          <div class="hero-nav">
+            <button type="button" class="hero-arrow hero-prev" aria-label="Previous photograph" disabled>
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 1.5 L3 6 L7.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+            <span class="hero-count"><span class="hero-cur">1</span> / {frames.length}</span>
+            <button type="button" class="hero-arrow hero-next" aria-label="Next photograph">
+              <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 1.5 L9 6 L4.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
 </section>
 
 <script>
