@@ -109,18 +109,20 @@ import Footer from "../components/Footer.astro";
     margin-top: 32px;
   }
   /* Safari can fail to respond to taps on a native <input type="time">
-     (or type="date") when it's a CSS grid item — global.css's .inq-field
-     is display:grid, which is exactly what wraps this field. The working
-     date field above uses a plain block <div> wrapper instead, which is
-     the actual difference between the two. Overriding back to block here
-     (scoped to just this one field via its id) removes that grid context
-     without touching .inq-field for Name/Email/Note or any other page.
-     This fixed it on mobile Safari but not desktop Safari — #time-field
-     is itself still a grid item of its OWN parent (#slot-picker, also
-     display:grid), and Safari's native time/date picker has its own
-     internal minimum width that conflicts with the default
-     `min-width: auto` every flex/grid item gets — `max-width` alone
-     doesn't override that, only an explicit `min-width: 0` does. */
+     (or type="date") when it sits inside a CSS Grid formatting context at
+     all — not just as a direct grid item, but anywhere descended from
+     one. The working date field has NO grid ancestor anywhere in its
+     chain; the time field did (#slot-picker, right above #time-field,
+     is .inquire = display:grid). Making #time-field itself display:block
+     fixed mobile Safari; adding min-width:0 (for the picker's own
+     internal minimum width fighting the default min-width:auto every
+     grid item gets) didn't fix desktop Safari — so this removes the
+     grid formatting context one level higher instead, at its actual
+     source. #slot-picker only ever holds this one field, so switching
+     it from grid to block changes nothing visually. */
+  #slot-picker {
+    display: block;
+  }
   #time-field {
     display: block;
     min-width: 0;
