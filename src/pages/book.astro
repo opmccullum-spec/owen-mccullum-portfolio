@@ -114,13 +114,23 @@ import Footer from "../components/Footer.astro";
      date field above uses a plain block <div> wrapper instead, which is
      the actual difference between the two. Overriding back to block here
      (scoped to just this one field via its id) removes that grid context
-     without touching .inq-field for Name/Email/Note or any other page. */
+     without touching .inq-field for Name/Email/Note or any other page.
+     This fixed it on mobile Safari but not desktop Safari — #time-field
+     is itself still a grid item of its OWN parent (#slot-picker, also
+     display:grid), and Safari's native time/date picker has its own
+     internal minimum width that conflicts with the default
+     `min-width: auto` every flex/grid item gets — `max-width` alone
+     doesn't override that, only an explicit `min-width: 0` does. */
   #time-field {
     display: block;
+    min-width: 0;
   }
   #time-field label {
     display: block;
     margin-bottom: 8px;
+  }
+  #time-input {
+    min-width: 0;
   }
   .hp-field {
     position: absolute;
