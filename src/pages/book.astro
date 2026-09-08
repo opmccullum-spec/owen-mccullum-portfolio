@@ -160,11 +160,14 @@ import Footer from "../components/Footer.astro";
      browser's own — Safari can drop its built-in picker icon entirely once
      a date/time input's border and background are customized this much
      (Chrome keeps showing its own regardless, which is why this was easy
-     to miss when only testing in Chrome). appearance:none turns off
-     whatever icon each browser would have drawn on its own — clicking
-     anywhere on the field still opens the native picker either way — so
-     every browser shows exactly this one icon instead of an inconsistent
-     or missing one. */
+     to miss when only testing in Chrome). Deliberately NOT touching
+     -webkit-appearance here: setting it to `none` looked fine in testing
+     (programmatic value changes still worked) but broke actually typing
+     into / picking from the native control in real Safari use, which
+     silently left the summary/price/submit button never appearing since
+     the field's value never truly changed. Hiding just the native
+     indicator pseudo-element is enough to stop Chrome's own icon from
+     doubling up with ours, without touching how the control behaves. */
   .calc-date-field input {
     font-family: var(--sans);
     font-weight: 300;
@@ -176,8 +179,6 @@ import Footer from "../components/Footer.astro";
     padding: 9px 28px 9px 0;
     width: 100%;
     max-width: 220px;
-    -webkit-appearance: none;
-    appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316140f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cline x1='3' y1='9' x2='21' y2='9'/%3E%3Cline x1='8' y1='3' x2='8' y2='7'/%3E%3Cline x1='16' y1='3' x2='16' y2='7'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right center;
@@ -187,9 +188,10 @@ import Footer from "../components/Footer.astro";
     outline: none;
     border-bottom-color: var(--ink);
   }
-  /* appearance:none alone doesn't stop Chrome drawing its own calendar
-     icon on top of ours — its indicator is a separate opt-in pseudo-
-     element that needs hiding explicitly, or both icons show at once. */
+  /* Chrome's native calendar icon is a separate opt-in pseudo-element
+     that otherwise doubles up with ours; Safari doesn't render one here
+     in the first place (that's the original bug), so this is a no-op
+     there — safe either way. */
   .calc-date-field input::-webkit-calendar-picker-indicator {
     opacity: 0;
   }
@@ -197,8 +199,6 @@ import Footer from "../components/Footer.astro";
      covers its base styling, this layers the custom clock icon on top
      (an #id selector already beats that global class selector). */
   #time-input {
-    -webkit-appearance: none;
-    appearance: none;
     padding-right: 28px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316140f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpolyline points='12 7 12 12 16 14'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
