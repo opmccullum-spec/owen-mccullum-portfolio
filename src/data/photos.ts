@@ -47,17 +47,18 @@ export const series: Series[] = [
 // as prints.
 export const photos: Photo[] = [
   // ── 01 · Portraits ───────────────────────────────────────────
-  { file: "auburn-curls.jpg",     title: "Auburn Curls",      location: "Washington, D.C. — 2025",series: "portraits",    span: 6,  shape: "port"      },
-  { file: "bridge-glow.jpg",      title: "Bridge Glow",       location: "Washington, D.C. — 2025",series: "portraits",    span: 6,  shape: "port"      },
+  // Order matches Owen's own filmstrip sequence (left to right).
+  { file: "bridge-glow.jpg",      title: "Bridge Glow",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "in-thought.jpg",       title: "In Thought",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
   { file: "yellow-mesh.jpg",      title: "Yellow Mesh",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-smile.jpg",        title: "The Smile",         location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "man-and-dog.jpg",      title: "Man and Dog",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "quiet-companions.jpg", title: "Quiet Companions",  location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "resting-gaze.jpg",     title: "Resting Gaze",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "amber-light.jpg",      title: "Amber Light",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
   { file: "unicorn-wig.jpg",      title: "Unicorn Wig",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
   { file: "the-red-couch.jpg",    title: "The Red Couch",     location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "in-thought.jpg",       title: "In Thought",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "resting-gaze.jpg",     title: "Resting Gaze",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "amber-light.jpg",      title: "Amber Light",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "man-and-dog.jpg",      title: "Man and Dog",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "quiet-companions.jpg", title: "Quiet Companions",  location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "the-smile.jpg",        title: "The Smile",         location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "auburn-curls.jpg",     title: "Auburn Curls",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
 ];
 
 /** Photos for one section, in display order. */
