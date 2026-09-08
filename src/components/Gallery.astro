@@ -46,7 +46,6 @@ const lightboxImages: LightboxImage[] = await Promise.all(
     });
     return {
       src: big.src,
-      title: p.title,
       location: p.location,
       width,
       height: Math.round((width * orig.height) / orig.width),
@@ -66,13 +65,13 @@ const lightboxImages: LightboxImage[] = await Promise.all(
           class={`plate c${p.span} s-${p.shape} reveal`}
           style={`--d:${(i % 4) * 90}ms`}
           data-lightbox={i}
-          aria-label={`Expand “${p.title}”`}
+          aria-label="Expand photograph"
         >
           <span class="ph" style={`background-image:url("${lqipMap[p.file]}")`}>
             <Image
               class="blurup"
               src={getPhotoImage(p.file)}
-              alt={p.title}
+              alt={`Photograph, ${p.location}`}
               widths={widthsFor[p.shape]}
               sizes={sizesFor[p.shape]}
               quality={78}

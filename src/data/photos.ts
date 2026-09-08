@@ -14,7 +14,6 @@ export type SeriesId = "portraits";
 export interface Photo {
   /** Filename inside src/assets/photos */
   file: string;
-  title: string;
   location: string;
   /** Which section of the gallery this photograph belongs to */
   series: SeriesId;
@@ -40,25 +39,23 @@ export const series: Series[] = [
   { id: "portraits", index: "01", title: "Portraits", note: "People met at arm's length — a gesture, a held gaze, a face turned to the light." },
 ];
 
-// Order within each section is the on-page order. Titles and classifications
-// were derived from the photographs themselves (vision pass + adversarial
-// verification) — locations are kept general where the frame doesn't prove a
-// specific place. Photographs with any identifiable likeness are not offered
-// as prints.
+// Order within each section is the on-page order — matches Owen's own
+// filmstrip sequence (left to right). Locations are kept general where the
+// frame doesn't prove a specific place. Photographs with any identifiable
+// likeness are not offered as prints.
 export const photos: Photo[] = [
   // ── 01 · Portraits ───────────────────────────────────────────
-  // Order matches Owen's own filmstrip sequence (left to right).
-  { file: "bridge-glow.jpg",      title: "Bridge Glow",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "in-thought.jpg",       title: "In Thought",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "yellow-mesh.jpg",      title: "Yellow Mesh",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "unicorn-wig.jpg",      title: "Unicorn Wig",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-red-couch.jpg",    title: "The Red Couch",     location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "resting-gaze.jpg",     title: "Resting Gaze",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "amber-light.jpg",      title: "Amber Light",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "man-and-dog.jpg",      title: "Man and Dog",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "quiet-companions.jpg", title: "Quiet Companions",  location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-smile.jpg",        title: "The Smile",         location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "auburn-curls.jpg",     title: "Auburn Curls",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "auburn-curls.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "the-smile.jpg",        location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "quiet-companions.jpg", location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "man-and-dog.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "amber-light.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "resting-gaze.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "unicorn-wig.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "bridge-glow.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "yellow-mesh.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "in-thought.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
+  { file: "the-red-couch.jpg",    location: "Washington, D.C. — 2025", series: "portraits", span: 4, shape: "port" },
 ];
 
 /** Photos for one section, in display order. */
