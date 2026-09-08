@@ -365,10 +365,21 @@ import Footer from "../components/Footer.astro";
       errorEl.hidden = true;
     }
 
+    // Category/hours can still change after a time is picked (the field
+    // stays open — see the "leave the time picker open" change) — if a
+    // time is already selected, re-run proceedWithTime so the summary/
+    // price/submit button reflect the new category or hours right away
+    // instead of going stale.
+    function refreshIfTimeSelected() {
+      if (!selected) return;
+      proceedWithTime(selected.startISO, new Date(selected.startISO));
+    }
+
     catButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
         calcCategory = btn.dataset.category as BookingCategory;
         catButtons.forEach((b) => b.classList.toggle("active", b === btn));
+        refreshIfTimeSelected();
       });
     });
     minusBtn.addEventListener("click", () => {
@@ -376,12 +387,14 @@ import Footer from "../components/Footer.astro";
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
+      refreshIfTimeSelected();
     });
     plusBtn.addEventListener("click", () => {
       calcHours = Math.min(MAX_HOURS, calcHours + 1);
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
+      refreshIfTimeSelected();
     });
 
     dateInput.addEventListener("change", () => {
