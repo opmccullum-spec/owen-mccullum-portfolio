@@ -41,9 +41,7 @@ import Footer from "../components/Footer.astro";
 
     <div id="book-app" class="reveal">
       <div id="slot-picker" class="inquire">
-        <p id="book-status" class="inq-note">Pick a date above to choose a time.</p>
-
-        <div class="inq-field" id="time-field" hidden>
+        <div class="inq-field" id="time-field">
           <label for="time-input">Choose a time</label>
           <input id="time-input" type="time" />
         </div>
@@ -253,8 +251,6 @@ import Footer from "../components/Footer.astro";
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
 
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
-    const statusEl = document.querySelector<HTMLElement>("#book-status")!;
-    const timeFieldEl = document.querySelector<HTMLElement>("#time-field")!;
     const timeInputEl = document.querySelector<HTMLInputElement>("#time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
@@ -271,18 +267,6 @@ import Footer from "../components/Footer.astro";
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
-    }
-
-    // The time field only makes sense once a day is picked (it needs the
-    // date to combine with the time into a real instant).
-    function updateTimeField() {
-      if (!dateInput.value) {
-        statusEl.hidden = false;
-        timeFieldEl.hidden = true;
-        return;
-      }
-      statusEl.hidden = true;
-      timeFieldEl.hidden = false;
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -337,7 +321,6 @@ import Footer from "../components/Footer.astro";
 
     dateInput.addEventListener("change", () => {
       timeInputEl.value = "";
-      updateTimeField();
     });
 
     timeInputEl.addEventListener("change", () => {
@@ -413,8 +396,6 @@ import Footer from "../components/Footer.astro";
         submitBtn.disabled = false;
       }
     });
-
-    updateTimeField();
   }
 
   if (document.readyState === "loading") {
