@@ -41,19 +41,11 @@ import Footer from "../components/Footer.astro";
 
     <div id="book-app" class="reveal">
       <div id="slot-picker" class="inquire">
-        <p id="book-status" class="inq-note">Loading available times…</p>
+        <p id="book-status" class="inq-note">Pick a date above to choose a time.</p>
 
         <div class="inq-field" id="time-field" hidden>
-          <label for="slot-select">Choose a time</label>
-          <select id="slot-select">
-            <option value="" disabled selected>Select a time…</option>
-          </select>
-          <span class="inq-note" id="time-hint" hidden>No standard times that day — choose "Other" to request one.</span>
-        </div>
-
-        <div class="inq-field" id="other-time-field" hidden>
-          <label for="other-time-input">Preferred time</label>
-          <input id="other-time-input" type="time" />
+          <label for="time-input">Choose a time</label>
+          <input id="time-input" type="time" />
         </div>
       </div>
 
@@ -230,7 +222,6 @@ import Footer from "../components/Footer.astro";
 <script>
   import { calculatePrice, CATEGORY_LABELS, MIN_HOURS, MAX_HOURS, type BookingCategory } from "../lib/pricing";
 
-  type Slot = { startISO: string; endISO: string };
   type Selected = { startISO: string; label: string };
 
   function money(cents: number) {
@@ -238,8 +229,8 @@ import Footer from "../components/Footer.astro";
   }
 
   // Local (visitor's own timezone) YYYY-MM-DD, matching what a native
-  // <input type="date"> produces — so a slot's day lines up with the day
-  // the visitor actually picked in the calendar.
+  // <input type="date"> produces — used only to floor the date picker's
+  // minimum to "today."
   function localDateKey(d: Date): string {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -264,10 +255,7 @@ import Footer from "../components/Footer.astro";
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
     const statusEl = document.querySelector<HTMLElement>("#book-status")!;
     const timeFieldEl = document.querySelector<HTMLElement>("#time-field")!;
-    const selectEl = document.querySelector<HTMLSelectElement>("#slot-select")!;
-    const timeHintEl = document.querySelector<HTMLElement>("#time-hint")!;
-    const otherFieldEl = document.querySelector<HTMLElement>("#other-time-field")!;
-    const otherInputEl = document.querySelector<HTMLInputElement>("#other-time-input")!;
+    const timeInputEl = document.querySelector<HTMLInputElement>("#time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const priceEl = document.querySelector<HTMLElement>("#book-price")!;
@@ -277,8 +265,6 @@ import Footer from "../components/Footer.astro";
     let calcCategory: BookingCategory = "family";
     let calcHours = 1;
     let selected: Selected | null = null;
-    let slotsByDay = new Map<string, Slot[]>();
-    let slotsLoaded = false;
 
     dateInput.min = localDateKey(new Date());
 
@@ -287,45 +273,16 @@ import Footer from "../components/Footer.astro";
       errorEl.hidden = false;
     }
 
-    function populateTimesForDay(dateKey: string) {
-      const daySlots = slotsByDay.get(dateKey) ?? [];
-
-      selectEl.innerHTML = "";
-      const placeholder = new Option("Select a time…", "", true, true);
-      placeholder.disabled = true;
-      selectEl.add(placeholder);
-      for (const slot of daySlots) {
-        const timeLabel = new Date(slot.startISO).toLocaleTimeString(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-        });
-        selectEl.add(new Option(timeLabel, slot.startISO));
+    // The time field only makes sense once a day is picked (it needs the
+    // date to combine with the time into a real instant).
+    function updateTimeField() {
+      if (!dateInput.value) {
+        statusEl.hidden = false;
+        timeFieldEl.hidden = true;
+        return;
       }
-      selectEl.add(new Option("Other — I'll specify a time", "other"));
-
-      timeHintEl.hidden = daySlots.length > 0;
       statusEl.hidden = true;
       timeFieldEl.hidden = false;
-    }
-
-    // Re-derives what the "choose a time" area should show — whether we're
-    // still waiting on availability, no date has been picked yet, or a
-    // date is picked and its times are ready.
-    function updateTimeOptions() {
-      if (!dateInput.value) {
-        statusEl.textContent = "Pick a date above to see available times.";
-        statusEl.hidden = false;
-        timeFieldEl.hidden = true;
-        otherFieldEl.hidden = true;
-        return;
-      }
-      if (!slotsLoaded) {
-        statusEl.textContent = "Loading available times…";
-        statusEl.hidden = false;
-        timeFieldEl.hidden = true;
-        return;
-      }
-      populateTimesForDay(dateInput.value);
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -379,56 +336,22 @@ import Footer from "../components/Footer.astro";
     });
 
     dateInput.addEventListener("change", () => {
-      selectEl.value = "";
-      otherFieldEl.hidden = true;
-      otherInputEl.value = "";
-      updateTimeOptions();
+      timeInputEl.value = "";
+      updateTimeField();
     });
 
-    selectEl.addEventListener("change", () => {
-      const value = selectEl.value;
-      if (!value) return;
-      if (value === "other") {
-        otherFieldEl.hidden = false;
-        otherInputEl.value = "";
-        otherInputEl.focus();
-        return;
-      }
-      otherFieldEl.hidden = true;
-      proceedWithTime(value, new Date(value));
-    });
-
-    otherInputEl.addEventListener("change", () => {
-      if (!otherInputEl.value || !dateInput.value) return;
+    timeInputEl.addEventListener("change", () => {
+      if (!timeInputEl.value || !dateInput.value) return;
       // Combining the calendar day with a plain HH:MM has no timezone info,
       // so the browser (correctly) parses it as the visitor's own local
       // wall-clock time on that day.
-      const d = new Date(`${dateInput.value}T${otherInputEl.value}:00`);
+      const d = new Date(`${dateInput.value}T${timeInputEl.value}:00`);
       if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
         showError("Please choose a time in the future.");
         return;
       }
       proceedWithTime(d.toISOString(), d);
     });
-
-    async function loadSlots() {
-      try {
-        const res = await fetch("/api/availability");
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || "unavailable");
-        slotsByDay = new Map();
-        for (const slot of data.slots as Slot[]) {
-          const key = localDateKey(new Date(slot.startISO));
-          if (!slotsByDay.has(key)) slotsByDay.set(key, []);
-          slotsByDay.get(key)!.push(slot);
-        }
-        slotsLoaded = true;
-        updateTimeOptions();
-      } catch {
-        statusEl.textContent = "Couldn't load available times — please try again shortly.";
-        statusEl.hidden = false;
-      }
-    }
 
     formEl.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -477,10 +400,8 @@ import Footer from "../components/Footer.astro";
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
           selected = null;
-          selectEl.value = "";
-          otherFieldEl.hidden = true;
+          timeInputEl.value = "";
           pickerEl.hidden = false;
-          loadSlots();
         } else if (data.error === "rate_limited") {
           showError("Too many requests from here recently — please email Owen directly for now.");
         } else {
@@ -493,8 +414,7 @@ import Footer from "../components/Footer.astro";
       }
     });
 
-    updateTimeOptions();
-    loadSlots();
+    updateTimeField();
   }
 
   if (document.readyState === "loading") {
