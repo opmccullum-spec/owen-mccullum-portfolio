@@ -25,19 +25,16 @@ import Footer from "../components/Footer.astro";
         <button type="button" class="calc-cat" data-category="portraits">Portraits &amp; Headshots</button>
       </div>
 
-      <div class="calc-row">
-        <div class="inq-field calc-date-field">
-          <label for="calc-date">Date</label>
-          <input id="calc-date" type="date" />
-        </div>
-        <div class="inq-field calc-hours-field">
-          <label for="calc-hours-value">Hours</label>
-          <div class="calc-stepper">
-            <button type="button" class="calc-step" id="calc-hours-minus" aria-label="Decrease hours">−</button>
-            <span id="calc-hours-value">1</span>
-            <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
-          </div>
-        </div>
+      <p class="inq-eyebrow calc-label">Date:</p>
+      <div class="calc-date-field">
+        <input id="calc-date" type="date" aria-label="Date" />
+      </div>
+
+      <p class="inq-eyebrow calc-label">Hours:</p>
+      <div class="calc-stepper" role="group" aria-label="Hours">
+        <button type="button" class="calc-step" id="calc-hours-minus" aria-label="Decrease hours">−</button>
+        <span id="calc-hours-value">1</span>
+        <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
       </div>
 
       <p class="inq-note" id="calc-estimate-text">Pick a date to see your estimate.</p>
@@ -161,16 +158,24 @@ import Footer from "../components/Footer.astro";
     border-color: var(--ink);
     color: var(--paper);
   }
-  .calc-row {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
+  .calc-label {
+    margin-top: 26px;
   }
-  .calc-date-field {
-    flex: 1 1 220px;
+  .calc-date-field input {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--ink);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 9px 0;
+    width: 100%;
+    max-width: 220px;
   }
-  .calc-hours-field {
-    flex: 0 0 auto;
+  .calc-date-field input:focus {
+    outline: none;
+    border-bottom-color: var(--ink);
   }
   .calc-stepper {
     display: flex;
@@ -335,15 +340,26 @@ import Footer from "../components/Footer.astro";
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
-      const label = dateForLabel.toLocaleString(undefined, {
-        weekday: "long",
+      const dateLabel = dateForLabel.toLocaleString(undefined, {
         month: "long",
         day: "numeric",
+        year: "numeric",
+      });
+      const timeLabel = dateForLabel.toLocaleString(undefined, {
         hour: "numeric",
         minute: "2-digit",
       });
+      const hourWord = calcHours === 1 ? "hour" : "hours";
+      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
+      const holidayNote = price.isHoliday ? " (includes a 20% holiday rate)" : "";
+      const label = `${dateLabel} for ${calcHours} ${hourWord} starting at ${timeLabel}`;
       selected = { startISO, label };
-      summaryEl.textContent = `Requesting: ${label}`;
+      summaryEl.textContent = "";
+      summaryEl.append(
+        `Requesting ${CATEGORY_LABELS[calcCategory]}, ${label} — `,
+        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
+        holidayNote,
+      );
 
       pickerEl.hidden = true;
       formEl.hidden = false;
