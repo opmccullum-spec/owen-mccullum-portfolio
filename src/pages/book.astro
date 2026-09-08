@@ -75,7 +75,7 @@ import Footer from "../components/Footer.astro";
 
         <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
 
-        <button class="inq-submit" type="submit">Request this time</button>
+        <button class="inq-submit" type="submit" id="book-submit">Request this time</button>
       </form>
 
       <div id="book-confirmation" class="inq-feedback" role="status" hidden></div>
@@ -267,6 +267,7 @@ import Footer from "../components/Footer.astro";
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const priceEl = document.querySelector<HTMLElement>("#book-price")!;
+    const submitBtn = document.querySelector<HTMLButtonElement>("#book-submit")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
 
@@ -307,6 +308,7 @@ import Footer from "../components/Footer.astro";
           }),
         );
       }
+      submitBtn.textContent = `Request this time — ${money(price.totalCents)}`;
 
       formEl.hidden = false;
       errorEl.hidden = true;
@@ -352,8 +354,6 @@ import Footer from "../components/Footer.astro";
       e.preventDefault();
       if (!selected) return;
       errorEl.hidden = true;
-
-      const submitBtn = formEl.querySelector<HTMLButtonElement>(".inq-submit")!;
       submitBtn.disabled = true;
 
       const formData = new FormData(formEl);
