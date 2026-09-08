@@ -1,15 +1,14 @@
 ---
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
-import intoTheLight from "../assets/photos/into-the-light.jpg";
-import inYellow from "../assets/photos/in-yellow.jpg";
-import centerStage from "../assets/photos/center-stage.jpg";
-import goldenHour from "../assets/photos/golden-hour.jpg";
-import backToBack from "../assets/photos/back-to-back.jpg";
-import frontRow from "../assets/photos/front-row.jpg";
-import remembrance from "../assets/photos/remembrance.jpg";
-import wallLine from "../assets/photos/wall-line.jpg";
-import theRiser from "../assets/photos/the-riser.jpg";
+import bridgeGlow from "../assets/photos/bridge-glow.jpg";
+import riverBend from "../assets/photos/river-bend.jpg";
+import atTheFence from "../assets/photos/at-the-fence.jpg";
+import theRodeo from "../assets/photos/the-rodeo.jpg";
+import theFountain from "../assets/photos/the-fountain.jpg";
+import crimsonStage from "../assets/photos/crimson-stage.jpg";
+import yellowMesh from "../assets/photos/yellow-mesh.jpg";
+import theSidewalk from "../assets/photos/the-sidewalk.jpg";
 
 const lqipMap = lqip as Record<string, string>;
 
@@ -18,15 +17,14 @@ const lqipMap = lqip as Record<string, string>;
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
 const frames = [
-  { img: inYellow, file: "in-yellow.jpg", alt: "A person with long locs in a yellow mesh cut-out top at an outdoor festival, Washington, D.C." },
-  { img: intoTheLight, file: "into-the-light.jpg", alt: "Backlit silhouettes of a crowd against a bright sky, hands and a phone raised overhead." },
-  { img: centerStage, file: "center-stage.jpg", alt: "A drag performer in a teal costume throws both arms wide on an outdoor festival stage beneath a clear blue sky." },
-  { img: goldenHour, file: "golden-hour.jpg", alt: "A concert crowd in warm low sun; a person in a red cap and sunglasses turns toward the camera as the stage glows behind." },
-  { img: backToBack, file: "back-to-back.jpg", alt: "Two figures stand back to back in dramatic low light, black and white." },
-  { img: frontRow, file: "front-row.jpg", alt: "A festival-goer in a bright shirt leans on a metal barricade in the sun, flashing a peace sign, flanked by others." },
-  { img: remembrance, file: "remembrance.jpg", alt: "A man in a stars-and-stripes shirt arranges flags and wreaths at a memorial wall as a plane crosses the sky, Washington, D.C." },
-  { img: wallLine, file: "wall-line.jpg", alt: "Several people lie on their backs along the base of a vast pale stone monument wall in hard sun, feet up against the stone, Washington, D.C." },
-  { img: theRiser, file: "the-riser.jpg", alt: "A person leans out of a raised press platform high on a hydraulic lift, working at equipment against a bright blue sky." },
+  { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a lace skirt and cowboy boots leans against a bridge railing at golden hour, city buildings glowing behind her." },
+  { img: riverBend, file: "river-bend.jpg", alt: "Sunlit tree branches hang over a muddy riverbank, rocks visible beneath the water's surface." },
+  { img: atTheFence, file: "at-the-fence.jpg", alt: "A family with young children waits at a security fence in a crowd on a sunny day." },
+  { img: theRodeo, file: "the-rodeo.jpg", alt: "A crowd in patriotic dress looks up and cheers beneath a large 'Rodeo 250' banner, the Capitol dome visible in the distance." },
+  { img: theFountain, file: "the-fountain.jpg", alt: "A boy plays with a soccer ball on a plaza while two adults talk beside a large fountain." },
+  { img: crimsonStage, file: "crimson-stage.jpg", alt: "A dancer in a patterned crop top and cargo pants strikes a pose under red stage lighting, an arm shielding their face." },
+  { img: yellowMesh, file: "yellow-mesh.jpg", alt: "A close portrait of a person with long locs wearing a yellow cut-out mesh tank top against a clear blue sky." },
+  { img: theSidewalk, file: "the-sidewalk.jpg", alt: "An older couple walks arm in arm down a city sidewalk, the woman's tattooed arm visible." },
 ];
 ---
 

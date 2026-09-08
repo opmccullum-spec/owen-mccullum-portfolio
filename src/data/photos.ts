@@ -9,7 +9,7 @@ import type { ImageMetadata } from "astro";
 
 export type PhotoSpan = 4 | 6 | 12;
 export type PhotoShape = "land" | "port" | "feature" | "square";
-export type SeriesId = "assembly" | "portraits" | "square" | "stillness";
+export type SeriesId = "portraits";
 
 export interface Photo {
   /** Filename inside src/assets/photos */
@@ -37,10 +37,7 @@ export interface Series {
 
 /** The bodies of work, in display order. */
 export const series: Series[] = [
-  { id: "assembly", index: "01", title: "Assembly", note: "Public life in the capital — the parade, the barricade, the crowd at full volume." },
-  { id: "portraits", index: "02", title: "Portraits", note: "People met at arm's length — a gesture, a held gaze, a face turned to the light." },
-  { id: "square", index: "03", title: "The Square", note: "Belief and dissent in the open air — the flag, the sign, the word on the Mall." },
-  { id: "stillness", index: "04", title: "Stillness", note: "The city between events — stone, solitude, and the long quiet." },
+  { id: "portraits", index: "01", title: "Portraits", note: "People met at arm's length — a gesture, a held gaze, a face turned to the light." },
 ];
 
 // Order within each section is the on-page order. Titles and classifications
@@ -49,50 +46,19 @@ export const series: Series[] = [
 // specific place. Photographs with any identifiable likeness are not offered
 // as prints.
 export const photos: Photo[] = [
-  // ── 01 · Assembly ────────────────────────────────────────────
-  // The festival/crowd frames also featured in the home hero carousel.
-  { file: "into-the-light.jpg", title: "Into the Light",    location: "Washington, D.C. — 2025",series: "assembly",     span: 12, shape: "feature"   },
-  { file: "center-stage.jpg",   title: "Center Stage",      location: "Washington, D.C. — 2025",series: "assembly",     span: 6,  shape: "land"      },
-  { file: "golden-hour.jpg",    title: "Golden Hour",       location: "Washington, D.C. — 2025",series: "assembly",     span: 6,  shape: "land"      },
-  { file: "in-yellow.jpg",      title: "In Yellow",         location: "Washington, D.C. — 2025",series: "assembly",     span: 4,  shape: "port"      },
-  { file: "back-to-back.jpg",   title: "Back to Back",      location: "Washington, D.C. — 2025",series: "assembly",     span: 4,  shape: "port"      },
-  { file: "front-row.jpg",      title: "Front Row",         location: "Washington, D.C. — 2025",series: "assembly",     span: 4,  shape: "land"      },
-
-  // ── 02 · Portraits ───────────────────────────────────────────
-  { file: "repose.jpg",         title: "Repose",            location: "Washington, D.C. — 2025",series: "portraits",    span: 12, shape: "feature"   },
-  { file: "in-navy.jpg",        title: "In Navy",           location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "steady-gaze.jpg",    title: "Steady Gaze",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "looking-up.jpg",     title: "Looking Up",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-chair.jpg",      title: "The Chair",         location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-lean.jpg",       title: "The Lean",          location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "warm-light.jpg",     title: "Warm Light",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "adorned.jpg",        title: "Adorned",           location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "sunlight.jpg",       title: "Sunlight",          location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-  { file: "the-matriarch.jpg",  title: "The Matriarch",     location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
-
-  // ── 03 · The Square ──────────────────────────────────────────
-  { file: "veteran.jpg",        title: "Veteran",           location: "Washington, D.C. — 2025",series: "square",       span: 12, shape: "feature"   },
-  { file: "the-word.jpg",       title: "The Word",          location: "Washington, D.C. — 2025",series: "square",       span: 6,  shape: "land"      },
-  { file: "flags.jpg",          title: "Flags",             location: "Washington, D.C. — 2025",series: "square",       span: 4,  shape: "port"      },
-  { file: "her-choice.jpg",     title: "Her Choice",        location: "Washington, D.C. — 2025",series: "square",       span: 4,  shape: "port"      },
-  { file: "red-cap.jpg",        title: "Red Cap",           location: "Washington, D.C. — 2025",series: "square",       span: 4,  shape: "port"      },
-
-  // ── 04 · Stillness ───────────────────────────────────────────
-  { file: "red-steps.jpg",      title: "Red Steps",         location: "Washington, D.C. — 2025",series: "stillness",    span: 12, shape: "feature"  , print: true },
-  { file: "two-profiles.jpg",   title: "Two Profiles",      location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "square"   , print: true },
-  { file: "at-the-wall.jpg",    title: "At the Wall",       location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "the-wall.jpg",       title: "The Wall",          location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "the-bench.jpg",      title: "The Bench",         location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "red-stair.jpg",      title: "Red Stair",         location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "the-suit.jpg",       title: "The Suit",          location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "watched.jpg",        title: "Watched",           location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "solitude.jpg",       title: "Solitude",          location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "sky.jpg",            title: "Sky",               location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"     , print: true },
-  { file: "rest.jpg",           title: "Rest",              location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "on-the-grass.jpg",   title: "On the Grass",      location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "past-the-fence.jpg", title: "Past the Fence",    location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "the-crossing.jpg",   title: "The Crossing",      location: "Washington, D.C. — 2025",series: "stillness",    span: 6,  shape: "land"      },
-  { file: "child-and-cat.jpg",  title: "Child and Cat",     location: "Washington, D.C. — 2025",series: "stillness",    span: 4,  shape: "port"      },
+  // ── 01 · Portraits ───────────────────────────────────────────
+  // Order matches Owen's own filmstrip sequence (left to right).
+  { file: "bridge-glow.jpg",      title: "Bridge Glow",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "in-thought.jpg",       title: "In Thought",        location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "yellow-mesh.jpg",      title: "Yellow Mesh",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "unicorn-wig.jpg",      title: "Unicorn Wig",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "the-red-couch.jpg",    title: "The Red Couch",     location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "resting-gaze.jpg",     title: "Resting Gaze",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "amber-light.jpg",      title: "Amber Light",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "man-and-dog.jpg",      title: "Man and Dog",       location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "quiet-companions.jpg", title: "Quiet Companions",  location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "the-smile.jpg",        title: "The Smile",         location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
+  { file: "auburn-curls.jpg",     title: "Auburn Curls",      location: "Washington, D.C. — 2025",series: "portraits",    span: 4,  shape: "port"      },
 ];
 
 /** Photos for one section, in display order. */
