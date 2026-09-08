@@ -4,13 +4,6 @@ export const prerender = false;
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { getOptionalProfile } from "../lib/auth";
-
-// Public page — works whether or not the visitor has ever logged in. If
-// they happen to be logged in already, prefill their name/email.
-const session = await getOptionalProfile(Astro.request, Astro.cookies);
-const prefillName = session?.profile.full_name ?? "";
-const prefillEmail = session?.user.email ?? "";
 ---
 
 <BaseLayout title="Book a Session — Owen McCullum" description="Request a session date and time with Owen McCullum.">
@@ -76,12 +69,12 @@ const prefillEmail = session?.user.email ?? "";
 
         <div class="inq-field">
           <label for="bk-name">Your name</label>
-          <input id="bk-name" name="name" type="text" required value={prefillName} />
+          <input id="bk-name" name="name" type="text" placeholder="Type name here" required />
         </div>
 
         <div class="inq-field">
           <label for="bk-email">Email</label>
-          <input id="bk-email" name="email" type="email" required value={prefillEmail} />
+          <input id="bk-email" name="email" type="email" placeholder="you@example.com" required />
         </div>
 
         <div class="inq-field">

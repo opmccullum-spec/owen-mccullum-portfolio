@@ -1159,6 +1159,11 @@ html.js .hero-strip {
   min-height: 96px;
   line-height: 1.5;
 }
+.inq-field input::placeholder,
+.inq-field textarea::placeholder {
+  color: var(--mute);
+  opacity: 0.7;
+}
 .inq-field select {
   appearance: none;
   -webkit-appearance: none;
