@@ -37,7 +37,6 @@ import Footer from "../components/Footer.astro";
         <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
       </div>
 
-      <p class="inq-note" id="calc-estimate-text">Pick a date to see your estimate.</p>
     </section>
 
     <div id="book-app" class="reveal">
@@ -59,7 +58,10 @@ import Footer from "../components/Footer.astro";
       </div>
 
       <form id="book-form" class="inquire" hidden novalidate>
-        <p class="inq-eyebrow" id="book-selected-summary">Selected time</p>
+        <div>
+          <p class="inq-eyebrow" id="book-selected-summary">Selected time</p>
+          <p class="book-price" id="book-price"></p>
+        </div>
 
         <div class="inq-field">
           <label for="bk-name">Your name</label>
@@ -203,14 +205,25 @@ import Footer from "../components/Footer.astro";
     opacity: 0.3;
     cursor: default;
   }
-  #calc-estimate-text {
-    margin-top: 24px;
-    font-family: var(--sans);
-    font-weight: 300;
-    font-size: 17px;
-    letter-spacing: normal;
-    text-transform: none;
+  .book-price {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: clamp(32px, 5vw, 48px);
+    letter-spacing: -0.02em;
     color: var(--ink);
+    margin: 6px 0 0;
+  }
+  /* :global — this span is created client-side (Object.assign(document.createElement(...))),
+     so it never gets Astro's scoped data-attribute and needs an unscoped selector. */
+  .book-price :global(.holiday-note) {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-top: 6px;
   }
 </style>
 
@@ -247,7 +260,6 @@ import Footer from "../components/Footer.astro";
     const hoursValueEl = document.querySelector<HTMLElement>("#calc-hours-value")!;
     const minusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-minus")!;
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
-    const estimateText = document.querySelector<HTMLElement>("#calc-estimate-text")!;
 
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
     const statusEl = document.querySelector<HTMLElement>("#book-status")!;
@@ -258,6 +270,7 @@ import Footer from "../components/Footer.astro";
     const otherInputEl = document.querySelector<HTMLInputElement>("#other-time-input")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
+    const priceEl = document.querySelector<HTMLElement>("#book-price")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
 
@@ -272,20 +285,6 @@ import Footer from "../components/Footer.astro";
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
-    }
-
-    function updateEstimate() {
-      if (!dateInput.value) {
-        estimateText.textContent = "Pick a date to see your estimate.";
-        return;
-      }
-      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
-      estimateText.textContent = "";
-      estimateText.append(
-        `${CATEGORY_LABELS[calcCategory]}, ${calcHours} hour${calcHours === 1 ? "" : "s"}: `,
-        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
-        price.isHoliday ? " (includes a 20% holiday rate)" : "",
-      );
     }
 
     function populateTimesForDay(dateKey: string) {
@@ -341,15 +340,20 @@ import Footer from "../components/Footer.astro";
       });
       const hourWord = calcHours === 1 ? "hour" : "hours";
       const price = calculatePrice(calcCategory, calcHours, dateInput.value);
-      const holidayNote = price.isHoliday ? " (includes a 20% holiday rate)" : "";
       const label = `${dateLabel} for ${calcHours} ${hourWord} starting at ${timeLabel}`;
       selected = { startISO, label };
-      summaryEl.textContent = "";
-      summaryEl.append(
-        `Requesting ${CATEGORY_LABELS[calcCategory]}, ${label} — `,
-        Object.assign(document.createElement("strong"), { textContent: money(price.totalCents) }),
-        holidayNote,
-      );
+      summaryEl.textContent = `Requesting ${CATEGORY_LABELS[calcCategory]}, ${label}.`;
+
+      priceEl.textContent = "";
+      priceEl.append(money(price.totalCents));
+      if (price.isHoliday) {
+        priceEl.append(
+          Object.assign(document.createElement("span"), {
+            className: "holiday-note",
+            textContent: "Includes a 20% holiday rate",
+          }),
+        );
+      }
 
       formEl.hidden = false;
       errorEl.hidden = true;
@@ -359,7 +363,6 @@ import Footer from "../components/Footer.astro";
       btn.addEventListener("click", () => {
         calcCategory = btn.dataset.category as BookingCategory;
         catButtons.forEach((b) => b.classList.toggle("active", b === btn));
-        updateEstimate();
       });
     });
     minusBtn.addEventListener("click", () => {
@@ -367,21 +370,18 @@ import Footer from "../components/Footer.astro";
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
-      updateEstimate();
     });
     plusBtn.addEventListener("click", () => {
       calcHours = Math.min(MAX_HOURS, calcHours + 1);
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
-      updateEstimate();
     });
 
     dateInput.addEventListener("change", () => {
       selectEl.value = "";
       otherFieldEl.hidden = true;
       otherInputEl.value = "";
-      updateEstimate();
       updateTimeOptions();
     });
 
@@ -493,7 +493,6 @@ import Footer from "../components/Footer.astro";
       }
     });
 
-    updateEstimate();
     updateTimeOptions();
     loadSlots();
   }
