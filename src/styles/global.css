@@ -1,4 +1,10 @@
 :root {
+  /* This site has one fixed light design, no dark variant — without this,
+     a visitor in OS/browser dark mode gets dark-mode-styled native form
+     controls (date/time picker icons, scrollbars) rendered for a dark
+     background that doesn't exist here, e.g. a white calendar/clock icon
+     that's invisible against this page's actual light background. */
+  color-scheme: light;
   --paper: #fafaf7;
   --ink: #16140f;
   --mute: #8c887e;
