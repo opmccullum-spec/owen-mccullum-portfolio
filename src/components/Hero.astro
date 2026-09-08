@@ -1,7 +1,18 @@
 ---
-import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
+import bridgeGlow from "../assets/photos/bridge-glow.jpg";
+import theRodeo from "../assets/photos/the-rodeo.jpg";
+import crimsonStage from "../assets/photos/crimson-stage.jpg";
+import theSidewalk from "../assets/photos/the-sidewalk.jpg";
+import theLedge from "../assets/photos/the-ledge.jpg";
+import memorialFountain from "../assets/photos/memorial-fountain.jpg";
+import theQueue from "../assets/photos/the-queue.jpg";
+import yellowMesh from "../assets/photos/yellow-mesh.jpg";
+import fieldOfFlags from "../assets/photos/field-of-flags.jpg";
+import underTheArches from "../assets/photos/under-the-arches.jpg";
+import inThought from "../assets/photos/in-thought.jpg";
+import wornOut from "../assets/photos/worn-out.jpg";
 
 const lqipMap = lqip as Record<string, string>;
 
@@ -9,11 +20,20 @@ const lqipMap = lqip as Record<string, string>;
 // to the center of the screen; the centered frame is full size and opaque,
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
-//
-// Empty for now — starting over on the carousel photos. To add one back:
-//   1. Drop the file into src/assets/photos/
-//   2. import it above, then add { img, file, alt } below.
-const frames: { img: ImageMetadata; file: string; alt: string }[] = [];
+const frames = [
+  { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a lace skirt and cowboy boots leans against a bridge railing at golden hour, city buildings glowing behind her." },
+  { img: theRodeo, file: "the-rodeo.jpg", alt: "A crowd in patriotic dress looks up and cheers beneath a large 'Rodeo 250' banner, the Capitol dome visible in the distance." },
+  { img: crimsonStage, file: "crimson-stage.jpg", alt: "A dancer in a patterned crop top and cargo pants strikes a pose under red stage lighting, an arm shielding their face." },
+  { img: theSidewalk, file: "the-sidewalk.jpg", alt: "An older couple walks arm in arm down a city sidewalk, the woman's tattooed arm visible." },
+  { img: theLedge, file: "the-ledge.jpg", alt: "A family rests on a stone ledge outside a government building, kids sprawled out and a man checking his phone." },
+  { img: memorialFountain, file: "memorial-fountain.jpg", alt: "A woman sits watching a fountain at a war memorial, a family looks on nearby, an orange bag in the foreground." },
+  { img: theQueue, file: "the-queue.jpg", alt: "A line of students waits in the shadow of a monument's marble base as two people walk past." },
+  { img: yellowMesh, file: "yellow-mesh.jpg", alt: "A close portrait of a person with long locs wearing a yellow cut-out mesh tank top against a clear blue sky." },
+  { img: fieldOfFlags, file: "field-of-flags.jpg", alt: "A woman kneels in a field covered with small blue memorial flags, a city skyline in the distance." },
+  { img: underTheArches, file: "under-the-arches.jpg", alt: "A crowd gathers beneath an ornate arched arcade, a boy with red hair and a girl with pink hair standing out." },
+  { img: inThought, file: "in-thought.jpg", alt: "A black and white close portrait of a woman resting her chin on her hand, looking up in thought." },
+  { img: wornOut, file: "worn-out.jpg", alt: "Four uniformed students slump on a marble bench, exhausted, one lying face down." },
+];
 ---
 
 <section class="hero">
