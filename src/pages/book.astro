@@ -84,7 +84,6 @@ import Footer from "../components/Footer.astro";
         <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
 
         <button class="inq-submit" type="submit">Request this time</button>
-        <button class="inq-note book-change-btn" type="button" id="book-change">← Choose a different time</button>
       </form>
 
       <div id="book-confirmation" class="inq-feedback" role="status" hidden></div>
@@ -112,14 +111,6 @@ import Footer from "../components/Footer.astro";
     height: 0;
     overflow: hidden;
   }
-  .book-change-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    text-decoration: underline;
-  }
-
   /* Price calculator */
   .calc {
     max-width: 560px;
@@ -269,7 +260,6 @@ import Footer from "../components/Footer.astro";
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
-    const changeBtn = document.querySelector<HTMLButtonElement>("#book-change")!;
 
     let calcCategory: BookingCategory = "family";
     let calcHours = 1;
@@ -361,7 +351,6 @@ import Footer from "../components/Footer.astro";
         holidayNote,
       );
 
-      pickerEl.hidden = true;
       formEl.hidden = false;
       errorEl.hidden = true;
     }
@@ -422,16 +411,6 @@ import Footer from "../components/Footer.astro";
       proceedWithTime(d.toISOString(), d);
     });
 
-    changeBtn.addEventListener("click", () => {
-      formEl.hidden = true;
-      selected = null;
-      selectEl.value = "";
-      otherFieldEl.hidden = true;
-      otherInputEl.value = "";
-      pickerEl.hidden = false;
-      updateTimeOptions();
-    });
-
     async function loadSlots() {
       try {
         const res = await fetch("/api/availability");
@@ -478,6 +457,7 @@ import Footer from "../components/Footer.astro";
 
         if (data.ok) {
           formEl.hidden = true;
+          pickerEl.hidden = true;
           const email = String(formData.get("email"));
           confirmationEl.textContent = "";
           confirmationEl.append(
