@@ -27,7 +27,7 @@ import Footer from "../components/Footer.astro";
 
       <p class="inq-eyebrow calc-label">Date:</p>
       <div class="calc-date-field">
-        <input id="calc-date" type="date" aria-label="Date" />
+        <input id="calc-date" type="date" aria-label="Date" autocomplete="off" />
       </div>
 
       <p class="inq-eyebrow calc-label">Hours:</p>
@@ -42,8 +42,26 @@ import Footer from "../components/Footer.astro";
     <div id="book-app" class="reveal">
       <div id="slot-picker" class="inquire">
         <div class="inq-field" id="time-field">
-          <label for="time-input">Choose a time</label>
-          <input id="time-input" type="time" />
+          <label id="time-field-label">Choose a time</label>
+          <div class="time-select-group" role="group" aria-labelledby="time-field-label">
+            <select id="time-hour" aria-label="Hour">
+              <option value="" disabled selected>HH</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option value={h}>{h}</option>)}
+            </select>
+            <span class="time-sep">:</span>
+            <select id="time-minute" aria-label="Minute">
+              <option value="" disabled selected>MM</option>
+              <option value="00">00</option>
+              <option value="15">15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+            </select>
+            <select id="time-ampm" aria-label="AM or PM">
+              <option value="" disabled selected>--</option>
+              <option value="AM">AM</option>
+              <option value="PM">PM</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -108,31 +126,55 @@ import Footer from "../components/Footer.astro";
   #book-confirmation {
     margin-top: 32px;
   }
-  /* Safari can fail to respond to taps on a native <input type="time">
-     (or type="date") when it sits inside a CSS Grid formatting context at
-     all — not just as a direct grid item, but anywhere descended from
-     one. The working date field has NO grid ancestor anywhere in its
-     chain; the time field did (#slot-picker, right above #time-field,
-     is .inquire = display:grid). Making #time-field itself display:block
-     fixed mobile Safari; adding min-width:0 (for the picker's own
-     internal minimum width fighting the default min-width:auto every
-     grid item gets) didn't fix desktop Safari — so this removes the
-     grid formatting context one level higher instead, at its actual
-     source. #slot-picker only ever holds this one field, so switching
-     it from grid to block changes nothing visually. */
-  #slot-picker {
-    display: block;
-  }
-  #time-field {
-    display: block;
-    min-width: 0;
-  }
+  /* The time field is three plain <select> dropdowns rather than a native
+     <input type="time"> — after several rounds of CSS fixes, the native
+     control's picker still wouldn't respond on desktop Safari/DuckDuckGo
+     (mobile Safari was fixable, desktop wasn't). A <select> is a totally
+     different, much simpler form control with no picker-overlay
+     positioning of its own, so this category of bug can't recur here. */
   #time-field label {
     display: block;
     margin-bottom: 8px;
   }
-  #time-input {
-    min-width: 0;
+  .time-select-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-select-group select {
+    width: auto;
+    flex: 0 0 auto;
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--ink);
+    background-color: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    padding: 9px 20px 9px 2px;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--mute) 50%),
+      linear-gradient(135deg, var(--mute) 50%, transparent 50%);
+    background-position:
+      calc(100% - 12px) 50%,
+      calc(100% - 7px) 50%;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+  }
+  .time-select-group select:focus {
+    outline: none;
+    border-bottom-color: var(--ink);
+  }
+  .time-sep {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 16px;
+    color: var(--ink);
   }
   .hp-field {
     position: absolute;
@@ -326,7 +368,9 @@ import Footer from "../components/Footer.astro";
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
 
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
-    const timeInputEl = document.querySelector<HTMLInputElement>("#time-input")!;
+    const hourSelect = document.querySelector<HTMLSelectElement>("#time-hour")!;
+    const minuteSelect = document.querySelector<HTMLSelectElement>("#time-minute")!;
+    const ampmSelect = document.querySelector<HTMLSelectElement>("#time-ampm")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const priceEl = document.querySelector<HTMLElement>("#book-price")!;
@@ -409,22 +453,43 @@ import Footer from "../components/Footer.astro";
       refreshIfTimeSelected();
     });
 
-    dateInput.addEventListener("change", () => {
-      timeInputEl.value = "";
-    });
+    function resetTimeSelects() {
+      hourSelect.value = "";
+      minuteSelect.value = "";
+      ampmSelect.value = "";
+    }
 
-    timeInputEl.addEventListener("change", () => {
-      if (!timeInputEl.value || !dateInput.value) return;
+    // Combines the three dropdowns into a 24-hour "HH:MM" string (what a
+    // native <input type="time"> would have produced), or null until all
+    // three have a value.
+    function get24HourTime(): string | null {
+      if (!hourSelect.value || !minuteSelect.value || !ampmSelect.value) return null;
+      let hour = Number(hourSelect.value) % 12;
+      if (ampmSelect.value === "PM") hour += 12;
+      return `${String(hour).padStart(2, "0")}:${minuteSelect.value}`;
+    }
+
+    function handleTimeSelectChange() {
+      const time = get24HourTime();
+      if (!time || !dateInput.value) return;
       // Combining the calendar day with a plain HH:MM has no timezone info,
       // so the browser (correctly) parses it as the visitor's own local
       // wall-clock time on that day.
-      const d = new Date(`${dateInput.value}T${timeInputEl.value}:00`);
+      const d = new Date(`${dateInput.value}T${time}:00`);
       if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
         showError("Please choose a time in the future.");
         return;
       }
       proceedWithTime(d.toISOString(), d);
+    }
+
+    dateInput.addEventListener("change", () => {
+      resetTimeSelects();
     });
+
+    hourSelect.addEventListener("change", handleTimeSelectChange);
+    minuteSelect.addEventListener("change", handleTimeSelectChange);
+    ampmSelect.addEventListener("change", handleTimeSelectChange);
 
     formEl.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -471,7 +536,7 @@ import Footer from "../components/Footer.astro";
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
           selected = null;
-          timeInputEl.value = "";
+          resetTimeSelects();
           pickerEl.hidden = false;
         } else if (data.error === "rate_limited") {
           showError("Too many requests from here recently — please email Owen directly for now.");
