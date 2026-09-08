@@ -108,6 +108,20 @@ import Footer from "../components/Footer.astro";
   #book-confirmation {
     margin-top: 32px;
   }
+  /* Safari can fail to respond to taps on a native <input type="time">
+     (or type="date") when it's a CSS grid item — global.css's .inq-field
+     is display:grid, which is exactly what wraps this field. The working
+     date field above uses a plain block <div> wrapper instead, which is
+     the actual difference between the two. Overriding back to block here
+     (scoped to just this one field via its id) removes that grid context
+     without touching .inq-field for Name/Email/Note or any other page. */
+  #time-field {
+    display: block;
+  }
+  #time-field label {
+    display: block;
+    margin-bottom: 8px;
+  }
   .hp-field {
     position: absolute;
     left: -9999px;
