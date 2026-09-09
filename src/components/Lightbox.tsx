@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 
 export interface LightboxImage {
   src: string;
-  title: string;
   location: string;
   width: number;
   height: number;
@@ -132,7 +131,7 @@ export default function Lightbox({ images }: Props) {
       class="lb"
       role="dialog"
       aria-modal="true"
-      aria-label={`${img.title}, ${img.location}`}
+      aria-label={`Photograph, ${img.location}`}
       onClick={close}
     >
       <button class="lb-close" aria-label="Close" onClick={close}>
@@ -182,7 +181,7 @@ export default function Lightbox({ images }: Props) {
             class="lb-img blurup"
             key={img.src}
             src={img.src}
-            alt={img.title}
+            alt={`Photograph, ${img.location}`}
             width={img.width}
             height={img.height}
             style={{ width: `${dispW}px`, height: `${dispH}px` }}
