@@ -239,6 +239,21 @@ set
   }'::jsonb
 where id = 1;
 
+-- ── admin Clients table: per-shoot contract & invoice links ────────────
+-- The admin Clients view is a table with one row per shoot (booking), so
+-- a contract and an invoice can each optionally point at the specific
+-- booking they belong to — that's what lets a row show the right contract
+-- status and outstanding balance for that shoot. Nullable, and
+-- `on delete set null` so anything not tied to a shoot (or whose shoot is
+-- later removed) keeps working exactly as before.
+alter table public.contracts add column if not exists booking_id uuid
+  references public.bookings (id) on delete set null;
+alter table public.invoices add column if not exists booking_id uuid
+  references public.bookings (id) on delete set null;
+
+create index if not exists contracts_booking_id_idx on public.contracts (booking_id);
+create index if not exists invoices_booking_id_idx on public.invoices (booking_id);
+
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your
 -- own email (that first login is what creates your profiles row):

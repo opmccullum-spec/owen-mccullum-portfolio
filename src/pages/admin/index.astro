@@ -11,12 +11,15 @@ import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
 
-// Admin-only view of everyone who has logged into the portal.
-const { data: clients } = await supabaseAdmin
-  .from("profiles")
-  .select("*")
-  .eq("is_admin", false)
-  .order("created_at", { ascending: false });
+// The Clients view is a table with one row per shoot (booking) — every
+// request ever made, newest-relevant first, with the contract and any
+// invoices that were tied to that specific shoot pulled in alongside.
+const { data: shoots } = await supabaseAdmin
+  .from("bookings")
+  .select(
+    "*, profiles(email, full_name), contracts(id, title, status, signing_url, signed_pdf_url), invoices(id, status, amount_cents, hosted_invoice_url)",
+  )
+  .order("starts_at", { ascending: true });
 
 const { data: invoices } = await supabaseAdmin
   .from("invoices")
@@ -59,6 +62,102 @@ function formatSession(startsAt: string, endsAt: string) {
   const startLabel = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const endLabel = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return `${dateLabel}, ${startLabel}–${endLabel}`;
+}
+
+// ── Build one view-model per shoot for the Clients table ────────────────
+const DAY_MS = 86_400_000;
+const nowMs = Date.now();
+const OPEN_INVOICE = (s: string) => s !== "paid" && s !== "void";
+
+type ContractState = "none" | "signed" | "due" | "overdue";
+type PaymentState = "none" | "paid" | "owes";
+
+const shootRows = (shoots ?? []).map((b: any) => {
+  const start = new Date(b.starts_at);
+  const startMs = start.getTime();
+  // A shoot counts as "past" once its start time is behind us — the row
+  // sinks to the bottom of the table in lighter gray regardless of sort.
+  const isPast = startMs < nowMs;
+  const daysSinceShoot = Math.max(1, Math.floor((nowMs - startMs) / DAY_MS));
+
+  const contract = (b.contracts ?? [])[0] ?? null;
+  let contractState: ContractState = "none";
+  let contractOverdueDays = 0;
+  if (contract) {
+    if (contract.status === "signed" || contract.status === "voided") {
+      contractState = contract.status === "signed" ? "signed" : "none";
+    } else if (isPast) {
+      contractState = "overdue";
+      contractOverdueDays = daysSinceShoot;
+    } else {
+      contractState = "due";
+    }
+  }
+  const contractHref: string | null =
+    contract?.signed_pdf_url || contract?.signing_url || null;
+
+  const invoicesForShoot = (b.invoices ?? []) as Array<{
+    status: string;
+    amount_cents: number;
+    hosted_invoice_url: string | null;
+  }>;
+  const owedCents = invoicesForShoot
+    .filter((i) => OPEN_INVOICE(i.status))
+    .reduce((sum, i) => sum + (i.amount_cents ?? 0), 0);
+  const paidCents = invoicesForShoot
+    .filter((i) => i.status === "paid")
+    .reduce((sum, i) => sum + (i.amount_cents ?? 0), 0);
+  const payHref =
+    invoicesForShoot.find((i) => OPEN_INVOICE(i.status))?.hosted_invoice_url ?? null;
+  const paymentState: PaymentState = !invoicesForShoot.length
+    ? "none"
+    : owedCents > 0
+      ? "owes"
+      : "paid";
+
+  // Sort keys (ascending puts the most-urgent / earliest first).
+  const contractSort =
+    contractState === "overdue"
+      ? -contractOverdueDays // more overdue → more negative → sorts first
+      : contractState === "due"
+        ? 1_000_000
+        : contractState === "signed"
+          ? 2_000_000
+          : 3_000_000;
+  const paymentSort =
+    paymentState === "owes" ? -owedCents : paymentState === "paid" ? 1 : 2;
+
+  const clientName: string = b.profiles?.full_name || b.profiles?.email || "—";
+  const email: string = b.profiles?.email || "—";
+
+  return {
+    id: b.id,
+    status: b.status as string,
+    start,
+    startMs,
+    isPast,
+    clientName,
+    email,
+    contract,
+    contractState,
+    contractOverdueDays,
+    contractHref,
+    owedCents,
+    paidCents,
+    payHref,
+    paymentState,
+    contractSort,
+    paymentSort,
+  };
+});
+
+// Default order: upcoming shoots first (soonest at top), then past shoots.
+shootRows.sort(
+  (a, b) => Number(a.isPast) - Number(b.isPast) || a.startMs - b.startMs,
+);
+
+function money(cents: number) {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 ---
 
@@ -125,17 +224,89 @@ function formatSession(startsAt: string, endsAt: string) {
       </p>
     )}
 
-    {!clients?.length ? (
-      <p class="reveal">No clients have logged in yet.</p>
+    {!shootRows.length ? (
+      <p class="reveal">No shoots booked yet.</p>
     ) : (
-      <div class="contact-grid reveal">
-        {clients.map((client) => (
-          <div class="contact-block">
-            <p class="ck">{new Date(client.created_at).toLocaleDateString()}</p>
-            <p class="big">{client.full_name || client.email}</p>
-            <p>{client.email}</p>
-          </div>
-        ))}
+      <div class="at-wrap reveal">
+        <table class="admin-table" id="clients-table">
+          <thead>
+            <tr>
+              <th aria-sort="ascending">
+                <button type="button" data-col="date" data-active="1" data-dir="asc">Date of session</button>
+              </th>
+              <th aria-sort="none"><button type="button" data-col="client">Client</button></th>
+              <th aria-sort="none"><button type="button" data-col="email">Email</button></th>
+              <th aria-sort="none"><button type="button" data-col="contract">Contract</button></th>
+              <th aria-sort="none"><button type="button" data-col="payment">Payment</button></th>
+            </tr>
+          </thead>
+          <tbody>
+            {shootRows.map((r) => (
+              <tr
+                class={r.isPast ? "is-past" : undefined}
+                data-past={r.isPast ? "1" : "0"}
+                data-sort-date={String(r.startMs)}
+                data-sort-client={r.clientName.toLowerCase()}
+                data-sort-email={r.email.toLowerCase()}
+                data-sort-contract={String(r.contractSort)}
+                data-sort-payment={String(r.paymentSort)}
+              >
+                <td>
+                  {r.start.toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  <span class="at-sub">
+                    {r.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    {r.status !== "confirmed" && <> · {r.status}</>}
+                  </span>
+                </td>
+                <td class="at-client">{r.clientName}</td>
+                <td>
+                  <a href={`mailto:${r.email}`}>{r.email}</a>
+                </td>
+                <td>
+                  {r.contractState === "none" ? (
+                    <span class="at-none">None</span>
+                  ) : (
+                    <>
+                      {r.contractHref ? (
+                        <a href={r.contractHref} target="_blank" rel="noopener">
+                          {r.contract?.title || "Contract"}
+                        </a>
+                      ) : (
+                        <span>{r.contract?.title || "Contract"}</span>
+                      )}
+                      <span class={`at-sub${r.contractState === "overdue" ? " at-overdue" : ""}`}>
+                        {r.contractState === "signed" && "Signed"}
+                        {r.contractState === "due" && "Awaiting signature"}
+                        {r.contractState === "overdue" &&
+                          `Overdue by ${r.contractOverdueDays} day${r.contractOverdueDays === 1 ? "" : "s"}`}
+                      </span>
+                    </>
+                  )}
+                </td>
+                <td>
+                  {r.paymentState === "none" ? (
+                    <span class="at-none">No invoice</span>
+                  ) : r.paymentState === "paid" ? (
+                    <>
+                      Paid<span class="at-sub">{money(r.paidCents)}</span>
+                    </>
+                  ) : r.payHref ? (
+                    <a href={r.payHref} target="_blank" rel="noopener">
+                      Owes {money(r.owedCents)}
+                    </a>
+                  ) : (
+                    <>Owes {money(r.owedCents)}</>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )}
 
@@ -226,3 +397,69 @@ function formatSession(startsAt: string, endsAt: string) {
   </main>
   <Footer />
 </BaseLayout>
+
+<script>
+  // Click any column header to sort the shoots table by that column; click
+  // the active one again to flip direction. Past shoots always stay grouped
+  // at the bottom no matter what's sorted.
+  function initClientsTable() {
+    const table = document.querySelector<HTMLTableElement>("#clients-table");
+    if (!table || table.dataset.init) return;
+    table.dataset.init = "1";
+
+    const tbody = table.querySelector("tbody")!;
+    const buttons = Array.from(table.querySelectorAll<HTMLButtonElement>("thead button"));
+    let sortCol = "date";
+    let sortDir = 1; // 1 asc, -1 desc
+
+    const keyFor = (col: string) => "sort" + col.charAt(0).toUpperCase() + col.slice(1);
+
+    function apply() {
+      const key = keyFor(sortCol);
+      const rows = Array.from(tbody.querySelectorAll<HTMLTableRowElement>("tr"));
+      rows.sort((a, b) => {
+        const pastDiff = (a.dataset.past === "1" ? 1 : 0) - (b.dataset.past === "1" ? 1 : 0);
+        if (pastDiff) return pastDiff;
+        const av = a.dataset[key] ?? "";
+        const bv = b.dataset[key] ?? "";
+        const an = parseFloat(av);
+        const bn = parseFloat(bv);
+        const numeric = !Number.isNaN(an) && !Number.isNaN(bn);
+        const cmp = numeric ? an - bn : String(av).localeCompare(String(bv));
+        return cmp * sortDir;
+      });
+      rows.forEach((row) => tbody.appendChild(row));
+
+      buttons.forEach((btn) => {
+        const active = btn.dataset.col === sortCol;
+        btn.dataset.active = active ? "1" : "0";
+        btn.dataset.dir = active ? (sortDir === 1 ? "asc" : "desc") : "";
+        btn.closest("th")?.setAttribute(
+          "aria-sort",
+          active ? (sortDir === 1 ? "ascending" : "descending") : "none",
+        );
+      });
+    }
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const col = btn.dataset.col!;
+        if (col === sortCol) sortDir *= -1;
+        else {
+          sortCol = col;
+          sortDir = 1;
+        }
+        apply();
+      });
+    });
+
+    apply();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initClientsTable, { once: true });
+  } else {
+    initClientsTable();
+  }
+  document.addEventListener("astro:page-load", initClientsTable);
+</script>

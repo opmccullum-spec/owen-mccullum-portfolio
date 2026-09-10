@@ -5,9 +5,23 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
+
+// Optionally tie this contract to a specific shoot, so the admin Clients
+// table can show its signed / due / overdue status on that shoot's row.
+const { data: shootOptions } = await supabaseAdmin
+  .from("bookings")
+  .select("id, starts_at, status, profiles(email, full_name)")
+  .order("starts_at", { ascending: false });
+
+function shootLabel(b: any) {
+  const when = new Date(b.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const who = b.profiles?.full_name || b.profiles?.email || "unknown client";
+  return `${when} — ${who}${b.status !== "confirmed" ? ` (${b.status})` : ""}`;
+}
 
 const error = Astro.url.searchParams.get("error");
 const errorMessage =
@@ -40,6 +54,24 @@ const errorMessage =
         <label for="ct-title">Title (for your own records)</label>
         <input id="ct-title" name="title" type="text" placeholder="e.g. Fall Portrait Session Agreement" required />
       </div>
+
+      {shootOptions && shootOptions.length > 0 && (
+        <div class="inq-field">
+          <label for="ct-shoot">Shoot this contract is for (optional)</label>
+          <select id="ct-shoot" name="bookingId">
+            <option value="">— Not tied to a specific shoot —</option>
+            {shootOptions.map((b) => (
+              <option
+                value={b.id}
+                data-email={b.profiles?.email ?? ""}
+                data-name={b.profiles?.full_name ?? ""}
+              >
+                {shootLabel(b)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div class="inq-field">
         <label for="ct-email">Client email</label>
@@ -95,6 +127,28 @@ const errorMessage =
 </BaseLayout>
 
 <script>
+  function initShootLink() {
+    const shoot = document.querySelector<HTMLSelectElement>("#ct-shoot");
+    const email = document.querySelector<HTMLInputElement>("#ct-email");
+    const name = document.querySelector<HTMLInputElement>("#ct-name");
+    if (!shoot || !email || shoot.dataset.init) return;
+    shoot.dataset.init = "1";
+
+    // Picking a shoot pins the client — fill in and lock their email, and
+    // prefill the name if we have one on file (still editable).
+    shoot.addEventListener("change", () => {
+      const opt = shoot.selectedOptions[0];
+      const em = opt?.dataset.email || "";
+      if (em) {
+        email.value = em;
+        email.readOnly = true;
+        if (name && opt?.dataset.name) name.value = opt.dataset.name;
+      } else {
+        email.readOnly = false;
+      }
+    });
+  }
+
   function initFeeBreakdown() {
     const fee = document.querySelector<HTMLInputElement>("#ct-fee");
     const out = document.querySelector<HTMLElement>("#fee-breakdown");
@@ -115,10 +169,15 @@ const errorMessage =
     update();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initFeeBreakdown, { once: true });
-  } else {
+  function init() {
+    initShootLink();
     initFeeBreakdown();
   }
-  document.addEventListener("astro:page-load", initFeeBreakdown);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+  document.addEventListener("astro:page-load", init);
 </script>
