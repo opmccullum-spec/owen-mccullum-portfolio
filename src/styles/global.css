@@ -1558,6 +1558,98 @@ html.js .hero-strip {
 }
 
 /* ----------------------------------------------------------------------------
+   Admin: sortable shoots table
+---------------------------------------------------------------------------- */
+.at-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: 15px;
+  color: var(--ink);
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 15px 20px 15px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.admin-table thead th {
+  padding: 0 20px 10px 0;
+  border-bottom: 1.5px solid var(--ink);
+}
+.admin-table thead button {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.admin-table thead button:hover,
+.admin-table thead button[data-active="1"] {
+  color: var(--ink);
+}
+.admin-table thead button[data-active="1"][data-dir="asc"]::after {
+  content: " ↑";
+}
+.admin-table thead button[data-active="1"][data-dir="desc"]::after {
+  content: " ↓";
+}
+.admin-table tbody tr.is-past td {
+  color: var(--mute);
+}
+.admin-table td.at-client {
+  font-weight: 400;
+}
+.admin-table tbody tr.is-past td.at-client {
+  color: var(--mute);
+}
+.admin-table .at-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-top: 5px;
+}
+.admin-table .at-sub.at-overdue {
+  color: #b3261e;
+}
+.admin-table .at-none {
+  color: var(--mute);
+}
+.admin-table a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line);
+}
+.admin-table a:hover {
+  text-decoration-color: currentColor;
+}
+@media (max-width: 760px) {
+  .admin-table {
+    font-size: 13px;
+  }
+  .admin-table th,
+  .admin-table td {
+    padding-right: 14px;
+  }
+}
+
+/* ----------------------------------------------------------------------------
    Blur-up image loading — a tiny placeholder shows immediately, the full
    image fades in over it.
 ---------------------------------------------------------------------------- */

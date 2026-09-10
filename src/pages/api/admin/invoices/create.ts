@@ -7,6 +7,7 @@ import { findOrCreateClient } from "../../../../lib/supabase/findOrCreateClient"
 import { stripe } from "../../../../lib/stripe";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function findOrCreateStripeCustomer(userId: string, email: string) {
   const { data: profile } = await supabaseAdmin.from("profiles").select("stripe_customer_id").eq("id", userId).single();
@@ -24,6 +25,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim();
   const dueDate = String(form.get("dueDate") ?? "");
+  const bookingId = String(form.get("bookingId") ?? "").trim() || null;
+  if (bookingId && !UUID_RE.test(bookingId)) {
+    return redirect("/admin/invoices/new?error=create_failed");
+  }
 
   const itemDescriptions = form.getAll("itemDescription[]").map((v) => String(v).trim());
   const itemAmounts = form.getAll("itemAmount[]").map((v) => parseFloat(String(v)));
@@ -42,6 +47,20 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   try {
     const authUser = await findOrCreateClient(email);
+
+    // If a shoot was chosen, make sure it exists (and, defensively, that it
+    // belongs to this same client) before linking the invoice to it.
+    if (bookingId) {
+      const { data: bk } = await supabaseAdmin
+        .from("bookings")
+        .select("id, client_id")
+        .eq("id", bookingId)
+        .maybeSingle();
+      if (!bk || bk.client_id !== authUser.id) {
+        return redirect("/admin/invoices/new?error=create_failed");
+      }
+    }
+
     const customerId = await findOrCreateStripeCustomer(authUser.id, email);
 
     // Create the (empty) invoice first, then attach each line item to it
@@ -82,6 +101,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
     const { error: insertErr } = await supabaseAdmin.from("invoices").insert({
       client_id: authUser.id,
+      booking_id: bookingId,
       stripe_invoice_id: invoice.id,
       description,
       amount_cents: amountCents,

@@ -7,6 +7,7 @@ import { findOrCreateClient } from "../../../../lib/supabase/findOrCreateClient"
 import { getTemplate, useTemplate, CONTRACT_FIELDS, signingUrlFromToken } from "../../../../lib/documenso";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const auth = await requireAdminApi(request, cookies);
@@ -25,8 +26,12 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const startEndTime = String(form.get("startEndTime") ?? "").trim();
   const location = String(form.get("location") ?? "").trim();
   const totalFee = parseFloat(String(form.get("totalFee") ?? ""));
+  const bookingId = String(form.get("bookingId") ?? "").trim() || null;
 
   if (!EMAIL_RE.test(email) || !title || !clientName || !sessionDate || !(totalFee > 0)) {
+    return redirect("/admin/contracts/new?error=create_failed");
+  }
+  if (bookingId && !UUID_RE.test(bookingId)) {
     return redirect("/admin/contracts/new?error=create_failed");
   }
 
@@ -54,6 +59,17 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   try {
     const authUser = await findOrCreateClient(email);
 
+    if (bookingId) {
+      const { data: bk } = await supabaseAdmin
+        .from("bookings")
+        .select("id, client_id")
+        .eq("id", bookingId)
+        .maybeSingle();
+      if (!bk || bk.client_id !== authUser.id) {
+        return redirect("/admin/contracts/new?error=create_failed");
+      }
+    }
+
     const template = await getTemplate(Number(templateId));
     const signerRecipient = template.recipients.find((r) => r.role === "SIGNER") ?? template.recipients[0];
     if (!signerRecipient) throw new Error("template has no recipients configured");
@@ -72,6 +88,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     const { error: insertErr } = await supabaseAdmin.from("contracts").insert({
       id: contractId,
       client_id: authUser.id,
+      booking_id: bookingId,
       documenso_document_id: String(result.id),
       title,
       status: "sent",

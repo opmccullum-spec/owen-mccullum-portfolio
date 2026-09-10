@@ -5,6 +5,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -14,6 +15,19 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
 
 // Default due date: 14 days out.
 const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Optionally tie this invoice to a specific shoot, so the admin Clients
+// table can show the right outstanding balance on that shoot's row.
+const { data: shootOptions } = await supabaseAdmin
+  .from("bookings")
+  .select("id, starts_at, status, profiles(email, full_name)")
+  .order("starts_at", { ascending: false });
+
+function shootLabel(b: any) {
+  const when = new Date(b.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  const who = b.profiles?.full_name || b.profiles?.email || "unknown client";
+  return `${when} — ${who}${b.status !== "confirmed" ? ` (${b.status})` : ""}`;
+}
 ---
 
 <BaseLayout title="New Invoice — Owen McCullum" description="Send a new invoice to a client.">
@@ -32,6 +46,20 @@ const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
     <form class="inquire reveal" method="POST" action="/api/admin/invoices/create" novalidate id="invoice-form">
       <p class="inq-eyebrow">Invoice details</p>
+
+      {shootOptions && shootOptions.length > 0 && (
+        <div class="inq-field">
+          <label for="inv-shoot">Shoot this invoice is for (optional)</label>
+          <select id="inv-shoot" name="bookingId">
+            <option value="">— Not tied to a specific shoot —</option>
+            {shootOptions.map((b) => (
+              <option value={b.id} data-email={b.profiles?.email ?? ""}>
+                {shootLabel(b)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div class="inq-field">
         <label for="inv-email">Client email</label>
@@ -84,6 +112,21 @@ const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
     const items = form.querySelector<HTMLElement>(".inv-items")!;
     const addBtn = form.querySelector<HTMLButtonElement>(".inv-add-item")!;
     const totalEl = form.querySelector<HTMLElement>("#inv-total-amt")!;
+
+    // Picking a shoot pins the client — fill in and lock their email.
+    const shoot = form.querySelector<HTMLSelectElement>("#inv-shoot");
+    const emailInput = form.querySelector<HTMLInputElement>("#inv-email");
+    if (shoot && emailInput) {
+      shoot.addEventListener("change", () => {
+        const em = shoot.selectedOptions[0]?.dataset.email || "";
+        if (em) {
+          emailInput.value = em;
+          emailInput.readOnly = true;
+        } else {
+          emailInput.readOnly = false;
+        }
+      });
+    }
 
     function rowTemplate(): HTMLElement {
       const row = items.querySelector(".inv-item-row")!.cloneNode(true) as HTMLElement;
