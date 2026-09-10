@@ -37,12 +37,12 @@ const photos = photosBySeries(seriesId);
 const lightboxImages: LightboxImage[] = await Promise.all(
   photos.map(async (p) => {
     const orig = getPhotoImage(p.file);
-    const width = Math.min(2400, orig.width);
+    const width = Math.min(2000, orig.width);
     const big = await getImage({
       src: orig,
       width,
       format: "webp",
-      quality: 82,
+      quality: 78,
     });
     return {
       src: big.src,
@@ -74,7 +74,7 @@ const lightboxImages: LightboxImage[] = await Promise.all(
               alt={`Photograph, ${p.location}`}
               widths={widthsFor[p.shape]}
               sizes={sizesFor[p.shape]}
-              quality={78}
+              quality={74}
               loading="lazy"
               decoding="async"
             />
