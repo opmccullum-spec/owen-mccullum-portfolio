@@ -7,6 +7,7 @@ import Footer from "../../components/Footer.astro";
 import { requireAdmin } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase/admin";
 import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
+import { buildShootRow, money } from "../../lib/adminShoots";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -43,13 +44,19 @@ const contracted = Astro.url.searchParams.get("contracted");
 const approved = Astro.url.searchParams.get("approved");
 const declined = Astro.url.searchParams.get("declined");
 const cancelled = Astro.url.searchParams.get("cancelled");
+const invoiceCancelled = Astro.url.searchParams.get("invoice_cancelled");
+const contractCancelled = Astro.url.searchParams.get("contract_cancelled");
 const bookingError = Astro.url.searchParams.get("error");
 const bookingErrorMessage =
   bookingError === "slot_conflict"
     ? "That time is no longer free on your calendar — decline this request instead."
     : bookingError === "approve_failed" || bookingError === "decline_failed" || bookingError === "cancel_failed"
       ? "Something went wrong with that booking action. Please try again."
-      : null;
+      : bookingError === "invoice_not_cancellable" || bookingError === "contract_not_cancellable"
+        ? "That can't be cancelled anymore — it's already been paid, signed, or cancelled."
+        : bookingError === "invoice_cancel_failed" || bookingError === "contract_cancel_failed"
+          ? "Something went wrong cancelling that. Please try again."
+          : null;
 
 function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -64,101 +71,14 @@ function formatSession(startsAt: string, endsAt: string) {
   return `${dateLabel}, ${startLabel}–${endLabel}`;
 }
 
-// ── Build one view-model per shoot for the Clients table ────────────────
-const DAY_MS = 86_400_000;
-const nowMs = Date.now();
-const OPEN_INVOICE = (s: string) => s !== "paid" && s !== "void";
-
-type ContractState = "none" | "signed" | "due" | "overdue";
-type PaymentState = "none" | "paid" | "owes";
-
-const shootRows = (shoots ?? []).map((b: any) => {
-  const start = new Date(b.starts_at);
-  const startMs = start.getTime();
-  // A shoot counts as "past" once its start time is behind us — the row
-  // sinks to the bottom of the table in lighter gray regardless of sort.
-  const isPast = startMs < nowMs;
-  const daysSinceShoot = Math.max(1, Math.floor((nowMs - startMs) / DAY_MS));
-
-  const contract = (b.contracts ?? [])[0] ?? null;
-  let contractState: ContractState = "none";
-  let contractOverdueDays = 0;
-  if (contract) {
-    if (contract.status === "signed" || contract.status === "voided") {
-      contractState = contract.status === "signed" ? "signed" : "none";
-    } else if (isPast) {
-      contractState = "overdue";
-      contractOverdueDays = daysSinceShoot;
-    } else {
-      contractState = "due";
-    }
-  }
-  const contractHref: string | null =
-    contract?.signed_pdf_url || contract?.signing_url || null;
-
-  const invoicesForShoot = (b.invoices ?? []) as Array<{
-    status: string;
-    amount_cents: number;
-    hosted_invoice_url: string | null;
-  }>;
-  const owedCents = invoicesForShoot
-    .filter((i) => OPEN_INVOICE(i.status))
-    .reduce((sum, i) => sum + (i.amount_cents ?? 0), 0);
-  const paidCents = invoicesForShoot
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + (i.amount_cents ?? 0), 0);
-  const payHref =
-    invoicesForShoot.find((i) => OPEN_INVOICE(i.status))?.hosted_invoice_url ?? null;
-  const paymentState: PaymentState = !invoicesForShoot.length
-    ? "none"
-    : owedCents > 0
-      ? "owes"
-      : "paid";
-
-  // Sort keys (ascending puts the most-urgent / earliest first).
-  const contractSort =
-    contractState === "overdue"
-      ? -contractOverdueDays // more overdue → more negative → sorts first
-      : contractState === "due"
-        ? 1_000_000
-        : contractState === "signed"
-          ? 2_000_000
-          : 3_000_000;
-  const paymentSort =
-    paymentState === "owes" ? -owedCents : paymentState === "paid" ? 1 : 2;
-
-  const clientName: string = b.profiles?.full_name || b.profiles?.email || "—";
-  const email: string = b.profiles?.email || "—";
-
-  return {
-    id: b.id,
-    status: b.status as string,
-    start,
-    startMs,
-    isPast,
-    clientName,
-    email,
-    contract,
-    contractState,
-    contractOverdueDays,
-    contractHref,
-    owedCents,
-    paidCents,
-    payHref,
-    paymentState,
-    contractSort,
-    paymentSort,
-  };
-});
+// One view-model per shoot for the Clients table (shared with the
+// per-client detail page's logic — see src/lib/adminShoots.ts).
+const shootRows = (shoots ?? []).map((b: any) => buildShootRow(b));
 
 // Default order: upcoming shoots first (soonest at top), then past shoots.
 shootRows.sort(
   (a, b) => Number(a.isPast) - Number(b.isPast) || a.startMs - b.startMs,
 );
-
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
 ---
 
 <BaseLayout title="Admin — Owen McCullum" description="Owen's client portal admin dashboard.">
@@ -170,7 +90,8 @@ function money(cents: number) {
         <h1 class="page-title">Clients</h1>
         <p class="page-lede">
           Everyone who has logged into the portal, plus every invoice,
-          contract, and booking request sent so far.
+          contract, and booking request sent so far. Click a client's name
+          for their full history and to manage their invoices and contracts.
         </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
@@ -218,6 +139,16 @@ function money(cents: number) {
         Booking cancelled.
       </p>
     )}
+    {invoiceCancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Invoice cancelled.
+      </p>
+    )}
+    {contractCancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Contract cancelled.
+      </p>
+    )}
     {bookingErrorMessage && (
       <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 40px;">
         {bookingErrorMessage}
@@ -263,7 +194,9 @@ function money(cents: number) {
                     {r.status !== "confirmed" && <> · {r.status}</>}
                   </span>
                 </td>
-                <td class="at-client">{r.clientName}</td>
+                <td class="at-client">
+                  <a href={`/admin/clients/${r.clientId}`}>{r.clientName}</a>
+                </td>
                 <td>
                   <a href={`mailto:${r.email}`}>{r.email}</a>
                 </td>

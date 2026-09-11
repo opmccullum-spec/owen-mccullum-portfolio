@@ -6,6 +6,7 @@ import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
+import { stripe } from "../../../lib/stripe";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -28,6 +29,48 @@ function shootLabel(b: any) {
   const who = b.profiles?.full_name || b.profiles?.email || "unknown client";
   return `${when} — ${who}${b.status !== "confirmed" ? ` (${b.status})` : ""}`;
 }
+
+// "Edit" an existing invoice arrives here as ?voidInvoiceId=<id> — Stripe
+// won't let a sent invoice's total change, so editing really means: prefill
+// this form with the original's details, and the create endpoint voids the
+// original once the replacement is successfully sent (see create.ts).
+const voidInvoiceIdParam = Astro.url.searchParams.get("voidInvoiceId");
+let prefillEmail = Astro.url.searchParams.get("email") ?? "";
+let prefillBookingId = "";
+let prefillItems: { description: string; amount: string }[] = [{ description: "", amount: "" }];
+let effectiveVoidInvoiceId: string | null = null;
+let voidInvoiceMissing = false;
+
+if (voidInvoiceIdParam) {
+  const { data: oldInvoice } = await supabaseAdmin
+    .from("invoices")
+    .select("id, stripe_invoice_id, booking_id, profiles(email)")
+    .eq("id", voidInvoiceIdParam)
+    .eq("status", "sent")
+    .maybeSingle();
+
+  if (!oldInvoice) {
+    voidInvoiceMissing = true;
+  } else {
+    effectiveVoidInvoiceId = oldInvoice.id;
+    prefillEmail = (oldInvoice.profiles as any)?.email ?? prefillEmail;
+    prefillBookingId = oldInvoice.booking_id ?? "";
+    if (oldInvoice.stripe_invoice_id) {
+      try {
+        const stripeInvoice = await stripe.invoices.retrieve(oldInvoice.stripe_invoice_id, { expand: ["lines"] });
+        const lines = stripeInvoice.lines.data;
+        if (lines.length) {
+          prefillItems = lines.map((l) => ({
+            description: l.description ?? "",
+            amount: (l.amount / 100).toFixed(2),
+          }));
+        }
+      } catch (err) {
+        console.error("failed to load original invoice's line items:", err instanceof Error ? err.message : err);
+      }
+    }
+  }
+}
 ---
 
 <BaseLayout title="New Invoice — Owen McCullum" description="Send a new invoice to a client.">
@@ -35,17 +78,26 @@ function shootLabel(b: any) {
   <main class="wrap page">
     <header class="page-head reveal">
       <p class="page-eyebrow">Admin</p>
-      <h1 class="page-title">New invoice.</h1>
+      <h1 class="page-title">{effectiveVoidInvoiceId ? "Replace invoice." : "New invoice."}</h1>
       <p class="page-lede">
-        Enter the client's email — if they've never logged into the portal before, an account is created for
-        them automatically. Stripe emails them a link to pay.
+        {effectiveVoidInvoiceId
+          ? "Adjust whatever's wrong and send — the original invoice is cancelled automatically once this one goes out, so the client only ever sees the correct one."
+          : "Enter the client's email — if they've never logged into the portal before, an account is created for them automatically. Stripe emails them a link to pay."}
       </p>
     </header>
 
     <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
 
+    {voidInvoiceMissing && (
+      <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 40px;">
+        That invoice can't be replaced anymore — it's already been paid or cancelled.
+      </p>
+    )}
+
     <form class="inquire reveal" method="POST" action="/api/admin/invoices/create" novalidate id="invoice-form">
       <p class="inq-eyebrow">Invoice details</p>
+
+      {effectiveVoidInvoiceId && <input type="hidden" name="voidInvoiceId" value={effectiveVoidInvoiceId} />}
 
       {shootOptions && shootOptions.length > 0 && (
         <div class="inq-field">
@@ -53,7 +105,7 @@ function shootLabel(b: any) {
           <select id="inv-shoot" name="bookingId">
             <option value="">— Not tied to a specific shoot —</option>
             {shootOptions.map((b) => (
-              <option value={b.id} data-email={b.profiles?.email ?? ""}>
+              <option value={b.id} data-email={b.profiles?.email ?? ""} selected={b.id === prefillBookingId}>
                 {shootLabel(b)}
               </option>
             ))}
@@ -63,21 +115,31 @@ function shootLabel(b: any) {
 
       <div class="inq-field">
         <label for="inv-email">Client email</label>
-        <input id="inv-email" name="email" type="email" autocomplete="off" required />
+        <input
+          id="inv-email"
+          name="email"
+          type="email"
+          autocomplete="off"
+          required
+          value={prefillEmail}
+          readonly={!!effectiveVoidInvoiceId}
+        />
       </div>
 
       <div class="inv-items">
-        <div class="inv-item-row">
-          <div class="inq-field inv-item-desc">
-            <label>Description</label>
-            <input name="itemDescription[]" type="text" placeholder="e.g. Fall portrait session" required />
+        {prefillItems.map((item) => (
+          <div class="inv-item-row">
+            <div class="inq-field inv-item-desc">
+              <label>Description</label>
+              <input name="itemDescription[]" type="text" placeholder="e.g. Fall portrait session" required value={item.description} />
+            </div>
+            <div class="inq-field inv-item-amt">
+              <label>Amount (USD)</label>
+              <input name="itemAmount[]" type="number" min="0.01" step="0.01" placeholder="250.00" required value={item.amount} />
+            </div>
+            <button type="button" class="inv-item-remove" aria-label="Remove line item" disabled={prefillItems.length <= 1}>&times;</button>
           </div>
-          <div class="inq-field inv-item-amt">
-            <label>Amount (USD)</label>
-            <input name="itemAmount[]" type="number" min="0.01" step="0.01" placeholder="250.00" required />
-          </div>
-          <button type="button" class="inv-item-remove" aria-label="Remove line item" disabled>&times;</button>
-        </div>
+        ))}
       </div>
 
       <button type="button" class="inq-note inv-add-item" style="justify-self: start; background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;">
@@ -97,7 +159,7 @@ function shootLabel(b: any) {
         </p>
       )}
 
-      <button class="inq-submit" type="submit">Create &amp; send invoice</button>
+      <button class="inq-submit" type="submit">{effectiveVoidInvoiceId ? "Send replacement invoice" : "Create & send invoice"}</button>
     </form>
   </main>
   <Footer />

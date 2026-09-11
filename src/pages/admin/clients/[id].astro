@@ -1,0 +1,277 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { requireAdmin } from "../../../lib/auth";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
+import { isPastShoot, daysSinceShoot, contractDisplay, invoiceDisplay, money } from "../../../lib/adminShoots";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+const clientId = Astro.params.id;
+const { data: client } = await supabaseAdmin.from("profiles").select("*").eq("id", clientId).maybeSingle();
+if (!client || client.is_admin) return Astro.redirect("/admin");
+
+const clientName = client.full_name || client.email;
+const backHere = `/admin/clients/${clientId}`;
+
+const { data: shoots } = await supabaseAdmin
+  .from("bookings")
+  .select(
+    "id, starts_at, ends_at, status, contracts(id, title, status, signing_url, signed_pdf_url), invoices(id, description, status, amount_cents, hosted_invoice_url)",
+  )
+  .eq("client_id", clientId)
+  .order("starts_at", { ascending: true });
+
+// Invoices/contracts sent to this client without picking a specific shoot
+// (e.g. a one-off charge) still belong to them — shown separately below.
+const { data: unscheduledContracts } = await supabaseAdmin
+  .from("contracts")
+  .select("id, title, status, signing_url, signed_pdf_url, created_at")
+  .eq("client_id", clientId)
+  .is("booking_id", null)
+  .order("created_at", { ascending: false });
+
+const { data: unscheduledInvoices } = await supabaseAdmin
+  .from("invoices")
+  .select("id, description, status, amount_cents, hosted_invoice_url, created_at")
+  .eq("client_id", clientId)
+  .is("booking_id", null)
+  .order("created_at", { ascending: false });
+
+const now = Date.now();
+const rows = (shoots ?? []).map((b) => {
+  const start = new Date(b.starts_at);
+  const isPast = isPastShoot(b.starts_at, now);
+  const days = daysSinceShoot(b.starts_at, now);
+  return { booking: b, start, isPast, days };
+});
+rows.sort((a, b) => Number(a.isPast) - Number(b.isPast) || a.start.getTime() - b.start.getTime());
+
+const invoiceCancelled = Astro.url.searchParams.get("invoice_cancelled");
+const contractCancelled = Astro.url.searchParams.get("contract_cancelled");
+const cancelError = Astro.url.searchParams.get("error");
+const cancelErrorMessage =
+  cancelError === "invoice_not_cancellable" || cancelError === "contract_not_cancellable"
+    ? "That can't be cancelled anymore — it's already been paid, signed, or cancelled."
+    : cancelError === "invoice_cancel_failed" || cancelError === "contract_cancel_failed"
+      ? "Something went wrong cancelling that. Please try again."
+      : null;
+---
+
+<BaseLayout title={`${clientName} — Admin — Owen McCullum`} description={`Shoots, invoices, and contracts for ${clientName}.`}>
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal portal-head">
+      <div>
+        <p class="page-eyebrow">Admin</p>
+        <h1 class="page-title">{clientName}</h1>
+        <p class="page-lede">{client.email}</p>
+      </div>
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;">
+      <a href="/admin">← Back to all clients</a> ·{" "}
+      <a href={`/admin/invoices/new?email=${encodeURIComponent(client.email)}`}>+ New invoice for {clientName}</a> ·{" "}
+      <a href={`/admin/contracts/new?email=${encodeURIComponent(client.email)}&clientName=${encodeURIComponent(clientName)}`}>
+        + New contract for {clientName}
+      </a>
+    </p>
+
+    {invoiceCancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Invoice cancelled.
+      </p>
+    )}
+    {contractCancelled && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Contract cancelled.
+      </p>
+    )}
+    {cancelErrorMessage && (
+      <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 40px;">
+        {cancelErrorMessage}
+      </p>
+    )}
+
+    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px);">Shoots</h2>
+
+    {!rows.length ? (
+      <p class="reveal" style="margin-bottom: 56px;">No shoots booked yet.</p>
+    ) : (
+      <div class="at-wrap reveal" style="margin-bottom: 56px;">
+        <table class="admin-table admin-table--detail">
+          <thead>
+            <tr>
+              <th>Date of session</th>
+              <th>Contract</th>
+              <th>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ booking: b, start, isPast, days }) => (
+              <tr class={isPast ? "is-past" : undefined}>
+                <td>
+                  {start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                  <span class="at-sub">
+                    {start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    {b.status !== "confirmed" && <> · {b.status}</>}
+                  </span>
+                </td>
+                <td>
+                  {!b.contracts?.length ? (
+                    <span class="at-none">None</span>
+                  ) : (
+                    b.contracts.map((c) => {
+                      const d = contractDisplay(c, isPast, days);
+                      const href = c.signed_pdf_url || c.signing_url;
+                      return (
+                        <div class="at-item">
+                          <span>{c.title}</span>
+                          <span class={`at-sub${d.overdue ? " at-overdue" : ""}`}>{d.label}</span>
+                          <span class="at-actions">
+                            {href && (
+                              <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
+                                View
+                              </a>
+                            )}
+                            {d.canCancel && (
+                              <form
+                                method="POST"
+                                action="/api/admin/contracts/cancel"
+                                style="display:inline;"
+                                onsubmit="return confirm('Cancel this contract? The client\\'s signing link will stop working.');"
+                              >
+                                <input type="hidden" name="contractId" value={c.id} />
+                                <input type="hidden" name="redirectTo" value={backHere} />
+                                <button type="submit" class="portal-signout-btn">Cancel</button>
+                              </form>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </td>
+                <td>
+                  {!b.invoices?.length ? (
+                    <span class="at-none">No invoice</span>
+                  ) : (
+                    b.invoices.map((i) => {
+                      const d = invoiceDisplay(i);
+                      return (
+                        <div class="at-item">
+                          <span>{d.label}</span>
+                          <span class="at-sub">{i.description}</span>
+                          <span class="at-actions">
+                            {i.hosted_invoice_url && (
+                              <a class="portal-signout-btn" href={i.hosted_invoice_url} target="_blank" rel="noopener">
+                                View
+                              </a>
+                            )}
+                            {d.canAct && (
+                              <>
+                                <a class="portal-signout-btn" href={`/admin/invoices/new?voidInvoiceId=${i.id}`}>
+                                  Edit
+                                </a>
+                                <form
+                                  method="POST"
+                                  action="/api/admin/invoices/cancel"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Cancel this invoice? The client will no longer be able to pay it.');"
+                                >
+                                  <input type="hidden" name="invoiceId" value={i.id} />
+                                  <input type="hidden" name="redirectTo" value={backHere} />
+                                  <button type="submit" class="portal-signout-btn">Cancel</button>
+                                </form>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {(unscheduledContracts?.length || unscheduledInvoices?.length) ? (
+      <>
+        <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px);">Not tied to a shoot</h2>
+        <div class="contact-grid reveal" style="margin-bottom: 56px;">
+          {unscheduledContracts?.map((c) => {
+            const d = contractDisplay(c, false, 0);
+            const href = c.signed_pdf_url || c.signing_url;
+            return (
+              <div class="contact-block">
+                <p class="ck">Contract · {d.label}</p>
+                <p class="big">{c.title}</p>
+                <p class="at-actions">
+                  {href && (
+                    <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
+                      View
+                    </a>
+                  )}
+                  {d.canCancel && (
+                    <form
+                      method="POST"
+                      action="/api/admin/contracts/cancel"
+                      style="display:inline;"
+                      onsubmit="return confirm('Cancel this contract? The client\\'s signing link will stop working.');"
+                    >
+                      <input type="hidden" name="contractId" value={c.id} />
+                      <input type="hidden" name="redirectTo" value={backHere} />
+                      <button type="submit" class="portal-signout-btn">Cancel</button>
+                    </form>
+                  )}
+                </p>
+              </div>
+            );
+          })}
+          {unscheduledInvoices?.map((i) => {
+            const d = invoiceDisplay(i);
+            return (
+              <div class="contact-block">
+                <p class="ck">Invoice · {d.label}</p>
+                <p class="big">{money(i.amount_cents)}</p>
+                <p>{i.description}</p>
+                <p class="at-actions">
+                  {i.hosted_invoice_url && (
+                    <a class="portal-signout-btn" href={i.hosted_invoice_url} target="_blank" rel="noopener">
+                      View
+                    </a>
+                  )}
+                  {d.canAct && (
+                    <>
+                      <a class="portal-signout-btn" href={`/admin/invoices/new?voidInvoiceId=${i.id}`}>
+                        Edit
+                      </a>
+                      <form
+                        method="POST"
+                        action="/api/admin/invoices/cancel"
+                        style="display:inline;"
+                        onsubmit="return confirm('Cancel this invoice? The client will no longer be able to pay it.');"
+                      >
+                        <input type="hidden" name="invoiceId" value={i.id} />
+                        <input type="hidden" name="redirectTo" value={backHere} />
+                        <button type="submit" class="portal-signout-btn">Cancel</button>
+                      </form>
+                    </>
+                  )}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    ) : null}
+  </main>
+  <Footer />
+</BaseLayout>

@@ -29,6 +29,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (bookingId && !UUID_RE.test(bookingId)) {
     return redirect("/admin/invoices/new?error=create_failed");
   }
+  // Set only when this submission is "editing" an existing invoice — Stripe
+  // won't let a sent invoice's total change, so editing means: create the
+  // corrected invoice below, and only once that succeeds, void the original.
+  const voidInvoiceId = String(form.get("voidInvoiceId") ?? "").trim() || null;
+  if (voidInvoiceId && !UUID_RE.test(voidInvoiceId)) {
+    return redirect("/admin/invoices/new?error=create_failed");
+  }
 
   const itemDescriptions = form.getAll("itemDescription[]").map((v) => String(v).trim());
   const itemAmounts = form.getAll("itemAmount[]").map((v) => parseFloat(String(v)));
@@ -59,6 +66,22 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       if (!bk || bk.client_id !== authUser.id) {
         return redirect("/admin/invoices/new?error=create_failed");
       }
+    }
+
+    // Same defensive check for the invoice being replaced, if any — it must
+    // belong to this client and still be cancellable (unpaid).
+    let oldStripeInvoiceId: string | null = null;
+    if (voidInvoiceId) {
+      const { data: old } = await supabaseAdmin
+        .from("invoices")
+        .select("id, client_id, stripe_invoice_id, status")
+        .eq("id", voidInvoiceId)
+        .eq("status", "sent")
+        .maybeSingle();
+      if (!old || old.client_id !== authUser.id) {
+        return redirect("/admin/invoices/new?error=create_failed");
+      }
+      oldStripeInvoiceId = old.stripe_invoice_id;
     }
 
     const customerId = await findOrCreateStripeCustomer(authUser.id, email);
@@ -110,6 +133,21 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       hosted_invoice_url: invoice.hosted_invoice_url,
     });
     if (insertErr) throw insertErr;
+
+    // Only void the original now that its replacement is safely created and
+    // sent — never the other way around, so a failure above never leaves
+    // the client with no live invoice at all.
+    if (voidInvoiceId) {
+      try {
+        if (oldStripeInvoiceId) await stripe.invoices.voidInvoice(oldStripeInvoiceId);
+        await supabaseAdmin.from("invoices").update({ status: "void" }).eq("id", voidInvoiceId).eq("status", "sent");
+      } catch (err) {
+        console.error(
+          "replacement invoice sent, but voiding the original failed — cancel it manually:",
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
 
     const params = new URLSearchParams({ invoiced: "1" });
     if (!emailed) {

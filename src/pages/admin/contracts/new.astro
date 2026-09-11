@@ -23,6 +23,11 @@ function shootLabel(b: any) {
   return `${when} — ${who}${b.status !== "confirmed" ? ` (${b.status})` : ""}`;
 }
 
+// Arriving from a client's own page (?email=&clientName=) prefills who
+// it's for, same idea as picking a shoot below.
+const prefillEmail = Astro.url.searchParams.get("email") ?? "";
+const prefillName = Astro.url.searchParams.get("clientName") ?? "";
+
 const error = Astro.url.searchParams.get("error");
 const errorMessage =
   error === "create_failed"
@@ -75,12 +80,12 @@ const errorMessage =
 
       <div class="inq-field">
         <label for="ct-email">Client email</label>
-        <input id="ct-email" name="email" type="email" autocomplete="off" required />
+        <input id="ct-email" name="email" type="email" autocomplete="off" required value={prefillEmail} />
       </div>
 
       <div class="inq-field">
         <label for="ct-name">Client name</label>
-        <input id="ct-name" name="clientName" type="text" required />
+        <input id="ct-name" name="clientName" type="text" required value={prefillName} />
       </div>
 
       <div class="inq-field">
