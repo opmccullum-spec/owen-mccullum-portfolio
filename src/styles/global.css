@@ -1649,6 +1649,33 @@ html.js .hero-strip {
   }
 }
 
+/* Admin: per-client detail page — a shoot's Contract/Payment cell can hold
+   several items (multiple invoices), each with its own action buttons, so
+   these cells wrap instead of the main table's single-line nowrap. */
+.admin-table--detail td {
+  white-space: normal;
+}
+.admin-table--detail .at-item:not(:last-child) {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+}
+.at-actions {
+  display: inline-flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+.at-actions .portal-signout-btn,
+.admin-table--detail .at-actions a.portal-signout-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+p.at-actions {
+  margin-top: 12px;
+}
+
 /* ----------------------------------------------------------------------------
    Blur-up image loading — a tiny placeholder shows immediately, the full
    image fades in over it.

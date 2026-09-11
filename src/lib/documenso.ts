@@ -96,6 +96,22 @@ export function signingUrlFromToken(token: string): string {
 // All of CONTRACT_FIELDS above are plain TEXT fields, so `text` covers v1.
 export type PrefillField = { id: number; type: "text"; value: string };
 
+/**
+ * Cancels a sent-but-unsigned document so the client's signing link stops
+ * working. Best-effort: Documenso's API is mid-migration (see the file-top
+ * note) and its cancel endpoint hasn't been exercised against a real
+ * account yet, so callers should treat a failure here as non-fatal and
+ * still record the cancellation on our own side — see
+ * api/admin/contracts/cancel.ts. Re-verify against
+ * https://openapi.documenso.com/reference if this starts erroring.
+ */
+export function cancelDocument(documentId: string): Promise<unknown> {
+  return documensoFetch(`/envelope/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ id: Number(documentId) }),
+  });
+}
+
 export function useTemplate(params: {
   templateId: number;
   recipients: { id: number; email: string; name?: string }[];
