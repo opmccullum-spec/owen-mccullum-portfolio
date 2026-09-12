@@ -32,7 +32,13 @@ async function resendFetch(path: string, init?: RequestInit) {
   return body;
 }
 
-export function sendEmail(params: { to: string; subject: string; html: string }): Promise<{ id: string }> {
+export function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  /** Lets the recipient just hit "Reply" to reach this address directly. */
+  replyTo?: string;
+}): Promise<{ id: string }> {
   return resendFetch("/emails", {
     method: "POST",
     body: JSON.stringify({
@@ -40,6 +46,7 @@ export function sendEmail(params: { to: string; subject: string; html: string })
       to: params.to,
       subject: params.subject,
       html: params.html,
+      ...(params.replyTo ? { reply_to: params.replyTo } : {}),
     }),
   });
 }

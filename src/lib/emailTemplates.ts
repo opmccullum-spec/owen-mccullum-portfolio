@@ -140,6 +140,35 @@ export function invoicePaidOwnerEmail(params: { clientName: string; description:
   };
 }
 
+// The contact form is the one email trigger with fully anonymous, free-text
+// input (no login, no server-side constraints beyond length) — escape it
+// before it lands in an HTML email.
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+const INQUIRY_TYPE_LABELS: Record<string, string> = {
+  Session: "a photo session",
+  Assignment: "an editorial assignment",
+  Print: "a print",
+  General: "something else",
+};
+
+export function contactInquiryOwnerEmail(params: { name: string; email: string; type: string; message: string }) {
+  const typeLabel = INQUIRY_TYPE_LABELS[params.type] ?? params.type;
+  const name = escapeHtml(params.name);
+  const email = escapeHtml(params.email);
+  const message = escapeHtml(params.message).replace(/\n/g, "<br>");
+  return {
+    subject: `${params.type} inquiry — ${params.name} (owenmcc.photo)`,
+    html: wrapEmail(`
+      <p>${name} (${email}) sent a contact inquiry about ${typeLabel}:</p>
+      <p>${message}</p>
+      <p><a href="mailto:${params.email}">Reply to ${name} →</a></p>
+    `),
+  };
+}
+
 export function contractSignedOwnerEmail(params: { clientName: string; title: string }) {
   return {
     subject: `Contract signed — ${params.title}`,

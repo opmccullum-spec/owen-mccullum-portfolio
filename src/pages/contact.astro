@@ -104,10 +104,6 @@ const EMAIL = "owenmcc.photo@gmail.com";
 </BaseLayout>
 
 <script>
-  // Web3Forms access key — public by design (it lives in the page). Submissions
-  // are delivered to owenmcc.photo@gmail.com, the address tied to this key.
-  const ACCESS_KEY = "aa832237-ae84-43c5-afb3-7e6f8d43f2bf";
-
   function initInquire() {
     const form = document.querySelector<HTMLFormElement>(".inquire");
     if (!form || form.dataset.init) return;
@@ -174,24 +170,22 @@ const EMAIL = "owenmcc.photo@gmail.com";
       submit.textContent = "Sending…";
 
       try {
-        const res = await fetch("https://api.web3forms.com/submit", {
+        const res = await fetch("/api/contact", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
           body: JSON.stringify({
-            access_key: ACCESS_KEY,
             name: name.value.trim(),
             email: email.value.trim(),
-            "inquiring about": typeEl.value,
+            type: typeEl.value,
             message: message.value.trim(),
-            subject: `${typeEl.value} inquiry — ${name.value.trim()} (owenmcc.photo)`,
-            from_name: "owenmcc.photo contact form",
+            honey: honey.value,
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok && (data.success === true || data.success === "true")) {
+        if (res.ok && data.success === true) {
           // Replace the form with the success note.
           form
             .querySelectorAll(".inq-field, .inq-submit, .inq-note")
