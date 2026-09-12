@@ -62,7 +62,7 @@ const TIMEZONES = [
       <p class="inq-eyebrow">Session settings</p>
 
       <div class="inq-field">
-        <label for="av-duration">Session length (minutes)</label>
+        <label for="av-duration">Fallback session length (minutes)</label>
         <input
           id="av-duration"
           name="session_duration_minutes"
@@ -71,6 +71,10 @@ const TIMEZONES = [
           value={settings?.session_duration_minutes ?? 60}
           required
         />
+        <span class="inq-note">
+          Real requests always reserve however many hours the client actually picked on /book — this only
+          applies on the rare request that somehow arrives without an hours value.
+        </span>
       </div>
 
       <div class="inq-field">
