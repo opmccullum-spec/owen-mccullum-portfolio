@@ -61,7 +61,13 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       .single();
     if (settingsErr || !settings) throw settingsErr ?? new Error("booking_settings missing");
 
-    const endISO = new Date(startDate.getTime() + settings.session_duration_minutes * 60_000).toISOString();
+    // The real reservation spans the client's actual requested hours, not
+    // the site-wide default — otherwise a 4-hour session would only ever
+    // block 60 minutes on the calendar (and pass the free/busy check below
+    // for a slot that's only free for that first hour). Falls back to the
+    // default only if hours is somehow missing.
+    const durationMinutes = hours ? hours * 60 : settings.session_duration_minutes;
+    const endISO = new Date(startDate.getTime() + durationMinutes * 60_000).toISOString();
 
     // The calendar day the session actually falls on in Owen's own
     // timezone — not wherever the visitor happens to be — since that's

@@ -42,28 +42,16 @@ import Footer from "../components/Footer.astro";
     <div id="book-app" class="reveal">
       <div id="slot-picker" class="inquire">
         <div class="inq-field" id="time-field">
-          <label id="time-field-label">Choose a time</label>
-          <div class="time-select-group" role="group" aria-labelledby="time-field-label">
-            <select id="time-hour" aria-label="Hour">
-              <option value="" disabled selected>HH</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option value={h}>{h}</option>)}
-            </select>
-            <span class="time-sep">:</span>
-            <select id="time-minute" aria-label="Minute">
-              <option value="" disabled selected>MM</option>
-              <option value="00">00</option>
-              <option value="15">15</option>
-              <option value="30">30</option>
-              <option value="45">45</option>
-            </select>
-            <select id="time-ampm" aria-label="AM or PM">
-              <option value="" disabled selected>--</option>
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
-          </div>
+          <label id="time-field-label" for="time-slot">Choose a time</label>
+          <select id="time-slot" aria-labelledby="time-field-label" disabled></select>
+          <p class="inq-note" id="time-slot-note" hidden></p>
         </div>
       </div>
+
+      <!-- A sibling of the picker/form, not nested inside either — so it's
+           visible whether it fires while picking a time (e.g. availability
+           failed to load) or while filling out/submitting the form below. -->
+      <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
 
       <form id="book-form" class="inquire" hidden novalidate>
         <div>
@@ -90,8 +78,6 @@ import Footer from "../components/Footer.astro";
           <label for="bk-company">Company</label>
           <input id="bk-company" name="company" type="text" tabindex="-1" autocomplete="off" />
         </div>
-
-        <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
 
         <button class="inq-submit" type="submit" id="book-submit">Request this time</button>
       </form>
@@ -126,55 +112,21 @@ import Footer from "../components/Footer.astro";
   #book-confirmation {
     margin-top: 32px;
   }
-  /* The time field is three plain <select> dropdowns rather than a native
-     <input type="time"> — after several rounds of CSS fixes, the native
+  /* The time field is a plain <select> populated from /api/availability
+     (real Google Calendar free/busy) rather than a native <input
+     type="time"> — after several rounds of CSS fixes, the native
      control's picker still wouldn't respond on desktop Safari/DuckDuckGo
      (mobile Safari was fixable, desktop wasn't). A <select> is a totally
      different, much simpler form control with no picker-overlay
-     positioning of its own, so this category of bug can't recur here. */
+     positioning of its own, so this category of bug can't recur here.
+     Styling comes from the shared `.inq-field select` rule in global.css —
+     nothing custom needed here. */
   #time-field label {
     display: block;
     margin-bottom: 8px;
   }
-  .time-select-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .time-select-group select {
-    width: auto;
-    flex: 0 0 auto;
-    font-family: var(--sans);
-    font-weight: 300;
-    font-size: 16px;
-    color: var(--ink);
-    background-color: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    padding: 9px 20px 9px 2px;
-    appearance: none;
-    -webkit-appearance: none;
-    cursor: pointer;
-    background-image: linear-gradient(45deg, transparent 50%, var(--mute) 50%),
-      linear-gradient(135deg, var(--mute) 50%, transparent 50%);
-    background-position:
-      calc(100% - 12px) 50%,
-      calc(100% - 7px) 50%;
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
-  }
-  .time-select-group select:focus {
-    outline: none;
-    border-bottom-color: var(--ink);
-  }
-  .time-sep {
-    font-family: var(--sans);
-    font-weight: 300;
-    font-size: 16px;
-    color: var(--ink);
+  #time-slot-note {
+    margin-top: 8px;
   }
   .hp-field {
     position: absolute;
@@ -338,6 +290,7 @@ import Footer from "../components/Footer.astro";
   import { calculatePrice, CATEGORY_LABELS, MIN_HOURS, MAX_HOURS, type BookingCategory } from "../lib/pricing";
 
   type Selected = { startISO: string; label: string };
+  type Slot = { startISO: string; endISO: string };
 
   function money(cents: number) {
     return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -368,9 +321,8 @@ import Footer from "../components/Footer.astro";
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
 
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
-    const hourSelect = document.querySelector<HTMLSelectElement>("#time-hour")!;
-    const minuteSelect = document.querySelector<HTMLSelectElement>("#time-minute")!;
-    const ampmSelect = document.querySelector<HTMLSelectElement>("#time-ampm")!;
+    const timeSelect = document.querySelector<HTMLSelectElement>("#time-slot")!;
+    const timeNoteEl = document.querySelector<HTMLElement>("#time-slot-note")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
     const priceEl = document.querySelector<HTMLElement>("#book-price")!;
@@ -381,6 +333,13 @@ import Footer from "../components/Footer.astro";
     let calcCategory: BookingCategory = "family";
     let calcHours = 1;
     let selected: Selected | null = null;
+    // Every open slot for the current hours, across the whole booking
+    // window — refetched only when hours changes (category and date don't
+    // affect which slots are actually free). Filtered down to whichever
+    // date is picked client-side, so switching dates doesn't need a
+    // round-trip.
+    let slotsForHours: Slot[] = [];
+    let requestToken = 0; // ignore a stale response if hours changes again mid-flight
 
     dateInput.min = localDateKey(new Date());
 
@@ -421,14 +380,87 @@ import Footer from "../components/Footer.astro";
       errorEl.hidden = true;
     }
 
-    // Category/hours can still change after a time is picked (the field
-    // stays open — see the "leave the time picker open" change) — if a
-    // time is already selected, re-run proceedWithTime so the summary/
-    // price/submit button reflect the new category or hours right away
-    // instead of going stale.
+    // Category can still change after a time is picked (the field stays
+    // open — see the "leave the time picker open" change) — if a time is
+    // already selected, re-run proceedWithTime so the summary/price/submit
+    // button reflect the new category right away instead of going stale.
+    // (Hours changing goes through renderSlotsForDate below instead, since
+    // a hours change can invalidate the previously selected time.)
     function refreshIfTimeSelected() {
       if (!selected) return;
       proceedWithTime(selected.startISO, new Date(selected.startISO));
+    }
+
+    // Narrows the full window of fetched slots down to whichever date is
+    // picked, and (re)populates the dropdown. Called after a fresh fetch
+    // and whenever the date changes.
+    function renderSlotsForDate() {
+      timeNoteEl.hidden = true;
+      timeSelect.innerHTML = "";
+
+      if (!dateInput.value) {
+        timeSelect.disabled = true;
+        return;
+      }
+
+      const dayMatches = slotsForHours.filter((s) => localDateKey(new Date(s.startISO)) === dateInput.value);
+
+      if (!dayMatches.length) {
+        timeSelect.disabled = true;
+        timeNoteEl.textContent = "No open times that day — try another date.";
+        timeNoteEl.hidden = false;
+      } else {
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        timeSelect.append(placeholder);
+        for (const slot of dayMatches) {
+          const opt = document.createElement("option");
+          opt.value = slot.startISO;
+          opt.textContent = new Date(slot.startISO).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          });
+          timeSelect.append(opt);
+        }
+        timeSelect.disabled = false;
+      }
+
+      // Keep the previous selection only if it's still on offer (e.g. a
+      // category change re-ran this indirectly via refreshIfTimeSelected —
+      // category doesn't affect availability, so it always will be).
+      // Otherwise the visitor needs to pick again.
+      if (selected && dayMatches.some((s) => s.startISO === selected!.startISO)) {
+        timeSelect.value = selected.startISO;
+      } else if (selected) {
+        selected = null;
+        formEl.hidden = true;
+      }
+      refreshIfTimeSelected();
+    }
+
+    // Fetches every open slot long enough for the current hours, across
+    // the whole booking window — a real Google Calendar free/busy check on
+    // Owen's end, not just a blind time picker.
+    async function loadSlotsForHours() {
+      const token = ++requestToken;
+      timeSelect.disabled = true;
+      timeSelect.innerHTML = "";
+      timeNoteEl.hidden = true;
+      try {
+        const res = await fetch(`/api/availability?hours=${calcHours}`);
+        const data = await res.json();
+        if (token !== requestToken) return; // superseded by a newer hours change
+        if (!data.ok) throw new Error(data.error || "unavailable");
+        slotsForHours = data.slots;
+        errorEl.hidden = true;
+      } catch {
+        if (token !== requestToken) return;
+        slotsForHours = [];
+        showError("Couldn't load available times — please try refreshing the page.");
+      }
+      renderSlotsForDate();
     }
 
     catButtons.forEach((btn) => {
@@ -443,53 +475,24 @@ import Footer from "../components/Footer.astro";
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
-      refreshIfTimeSelected();
+      loadSlotsForHours();
     });
     plusBtn.addEventListener("click", () => {
       calcHours = Math.min(MAX_HOURS, calcHours + 1);
       hoursValueEl.textContent = String(calcHours);
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
-      refreshIfTimeSelected();
+      loadSlotsForHours();
     });
 
-    function resetTimeSelects() {
-      hourSelect.value = "";
-      minuteSelect.value = "";
-      ampmSelect.value = "";
-    }
+    dateInput.addEventListener("change", renderSlotsForDate);
 
-    // Combines the three dropdowns into a 24-hour "HH:MM" string (what a
-    // native <input type="time"> would have produced), or null until all
-    // three have a value.
-    function get24HourTime(): string | null {
-      if (!hourSelect.value || !minuteSelect.value || !ampmSelect.value) return null;
-      let hour = Number(hourSelect.value) % 12;
-      if (ampmSelect.value === "PM") hour += 12;
-      return `${String(hour).padStart(2, "0")}:${minuteSelect.value}`;
-    }
-
-    function handleTimeSelectChange() {
-      const time = get24HourTime();
-      if (!time || !dateInput.value) return;
-      // Combining the calendar day with a plain HH:MM has no timezone info,
-      // so the browser (correctly) parses it as the visitor's own local
-      // wall-clock time on that day.
-      const d = new Date(`${dateInput.value}T${time}:00`);
-      if (isNaN(d.getTime()) || d.getTime() < Date.now()) {
-        showError("Please choose a time in the future.");
-        return;
-      }
-      proceedWithTime(d.toISOString(), d);
-    }
-
-    dateInput.addEventListener("change", () => {
-      resetTimeSelects();
+    timeSelect.addEventListener("change", () => {
+      if (!timeSelect.value) return;
+      proceedWithTime(timeSelect.value, new Date(timeSelect.value));
     });
 
-    hourSelect.addEventListener("change", handleTimeSelectChange);
-    minuteSelect.addEventListener("change", handleTimeSelectChange);
-    ampmSelect.addEventListener("change", handleTimeSelectChange);
+    loadSlotsForHours();
 
     formEl.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -536,8 +539,8 @@ import Footer from "../components/Footer.astro";
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
           selected = null;
-          resetTimeSelects();
           pickerEl.hidden = false;
+          loadSlotsForHours(); // refresh so the now-taken time drops off the list
         } else if (data.error === "rate_limited") {
           showError("Too many requests from here recently — please email Owen directly for now.");
         } else {

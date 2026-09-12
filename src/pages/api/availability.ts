@@ -4,6 +4,7 @@ import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../lib/supabase/admin";
 import { getFreeBusy } from "../../lib/googleCalendar";
 import { computeAvailableSlots } from "../../lib/availability";
+import { MIN_HOURS, MAX_HOURS } from "../../lib/pricing";
 
 // Public and unauthenticated on purpose — it only ever returns open time
 // slots (no client data), same as the tali.so widget it replaces exposed to
@@ -17,7 +18,15 @@ import { computeAvailableSlots } from "../../lib/availability";
 // indefinitely either way, this only affects what's shown as available.
 const PENDING_HOLD_HOURS = 48;
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ url }) => {
+  // The client's chosen shoot length — a slot must have this much
+  // contiguous free time, not just the site-wide default, so a 4-hour
+  // session is never offered a start time that's only actually free for
+  // the first hour of it. Falls back to the site-wide default (below) if
+  // missing or out of range, e.g. a request that skips the calculator.
+  const hoursParam = Number(url.searchParams.get("hours"));
+  const hours = Number.isFinite(hoursParam) ? Math.min(MAX_HOURS, Math.max(MIN_HOURS, Math.round(hoursParam))) : null;
+
   const { data: settings, error: settingsErr } = await supabaseAdmin
     .from("booking_settings")
     .select("*")
@@ -52,7 +61,7 @@ export const GET: APIRoute = async () => {
     const slots = computeAvailableSlots({
       workingHours: settings.working_hours,
       timezone: settings.timezone,
-      sessionDurationMinutes: settings.session_duration_minutes,
+      sessionDurationMinutes: hours ? hours * 60 : settings.session_duration_minutes,
       bufferMinutes: settings.buffer_minutes,
       slotIntervalMinutes: settings.slot_interval_minutes,
       advanceBookingDays: settings.advance_booking_days,

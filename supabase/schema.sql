@@ -220,24 +220,18 @@ grant select, insert, update, delete on public.booking_settings to service_role;
 
 insert into public.booking_settings (id) values (1) on conflict (id) do nothing;
 
--- How far apart displayed start times are (e.g. every hour on the hour) —
+-- How far apart displayed start times are (e.g. every 30 minutes) —
 -- independent of session_duration_minutes, which is how long a session
--- actually runs. Requested by Owen: hourly slots 8am-9pm.
+-- actually runs.
 alter table public.booking_settings add column if not exists slot_interval_minutes integer not null default 60;
 
-update public.booking_settings
-set
-  slot_interval_minutes = 60,
-  working_hours = '{
-    "mon": {"start": "08:00", "end": "21:00"},
-    "tue": {"start": "08:00", "end": "21:00"},
-    "wed": {"start": "08:00", "end": "21:00"},
-    "thu": {"start": "08:00", "end": "21:00"},
-    "fri": {"start": "08:00", "end": "21:00"},
-    "sat": null,
-    "sun": null
-  }'::jsonb
-where id = 1;
+-- One-time historical migration (hourly slots 8am-9pm, weekends closed) —
+-- deliberately NOT re-applied on every run: Owen has since customized both
+-- his working hours (weekends are open now) and the slot interval (30 min)
+-- from /admin/availability, and a plain `update ... where id = 1` here
+-- would silently stomp those live edits on any future re-run of this file.
+-- Both fields are already columns with defaults (above), so a fresh
+-- database still gets sane values without this.
 
 -- ── admin Clients table: per-shoot contract & invoice links ────────────
 -- The admin Clients view is a table with one row per shoot (booking), so
