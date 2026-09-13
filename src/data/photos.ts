@@ -44,16 +44,17 @@ export const series: Series[] = [{ id: "portraits", index: "01", title: "Portrai
 export const photos: Photo[] = [
   // ── 01 · Portraits ───────────────────────────────────────────
   { file: "bridge-glow.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "the-golden-hour.jpg",  location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
   { file: "yellow-mesh.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "unicorn-wig.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
   { file: "auburn-curls.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
   { file: "the-smile.jpg",        location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "quiet-companions.jpg", location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
   { file: "man-and-dog.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "amber-light.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "resting-gaze.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "unicorn-wig.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "in-thought.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "quiet-companions.jpg", location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
   { file: "the-red-couch.jpg",    location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "in-thought.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "resting-gaze.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
+  { file: "leaning-in.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
 ];
 
 /** Photos for one section, in display order. */
