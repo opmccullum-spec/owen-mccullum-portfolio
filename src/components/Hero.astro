@@ -78,7 +78,7 @@ const frames = [
 
         <div class="hero-bar">
           <div class="hero-nav">
-            <button type="button" class="hero-arrow hero-prev" aria-label="Previous photograph" disabled>
+            <button type="button" class="hero-arrow hero-prev" aria-label="Previous photograph">
               <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 1.5 L3 6 L7.5 10.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </button>
             <span class="hero-count"><span class="hero-cur">1</span> / {frames.length}</span>
@@ -105,14 +105,30 @@ const frames = [
     hero.dataset.init = "1";
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const last = frames.length - 1;
-    let cur = 0;
+    const n = frames.length;
 
-    // Update the counter and arrow enabled-states for the current frame.
+    // Clone the first and last frames onto the opposite ends of the strip so
+    // arrowing (or swiping) past either end glides into a duplicate, then
+    // silently teleports onto the real frame it matches — see settle()
+    // below. Since the clone is pixel-identical, the jump is invisible and
+    // the carousel appears to loop forever.
+    const firstClone = frames[0].cloneNode(true) as HTMLElement;
+    const lastClone = frames[n - 1].cloneNode(true) as HTMLElement;
+    firstClone.setAttribute("aria-hidden", "true");
+    lastClone.setAttribute("aria-hidden", "true");
+    firstClone.removeAttribute("role");
+    lastClone.removeAttribute("role");
+    strip.append(firstClone);
+    strip.prepend(lastClone);
+
+    const allFrames = [lastClone, ...frames, firstClone];
+    const lastIdx = allFrames.length - 1;
+    let cur = 1; // index into allFrames of the first real frame
+
+    // Update the counter for the current frame, mapping boundary clones back
+    // onto the real frame number they duplicate.
     function updateChrome() {
-      if (curEl) curEl.textContent = String(cur + 1);
-      prevBtn?.toggleAttribute("disabled", cur === 0);
-      nextBtn?.toggleAttribute("disabled", cur === last);
+      if (curEl) curEl.textContent = String(cur === 0 ? n : cur === lastIdx ? 1 : cur);
     }
 
     // Paint each frame's scale + opacity from its distance to screen centre,
@@ -123,7 +139,7 @@ const frames = [
       const mid = window.innerWidth / 2;
       let best = 0;
       let bestDist = Infinity;
-      frames.forEach((f, i) => {
+      allFrames.forEach((f, i) => {
         const r = f.getBoundingClientRect();
         const c = r.left + r.width / 2;
         const dist = Math.abs(c - mid);
@@ -146,12 +162,39 @@ const frames = [
       if (!raf) raf = window.requestAnimationFrame(paint);
     }
 
+    // Instantly re-centre on frame `i` with no animation — used to hop from
+    // a boundary clone onto the real frame it duplicates.
+    function teleportTo(i: number) {
+      const f = allFrames[i];
+      const sr = strip.getBoundingClientRect();
+      const fr = f.getBoundingClientRect();
+      const prevSnap = strip.style.scrollSnapType;
+      strip.style.scrollSnapType = "none";
+      strip.scrollLeft += fr.left + fr.width / 2 - (sr.left + sr.width / 2);
+      strip.style.scrollSnapType = prevSnap;
+      cur = i;
+      updateChrome();
+    }
+
+    // Called once a navigation to frame `i` has finished. Landing on a
+    // boundary clone (0 or lastIdx) teleports onto the matching real frame
+    // so the next step continues the loop instead of hitting a dead end.
+    function settle(i: number) {
+      if (i === 0) teleportTo(n);
+      else if (i === lastIdx) teleportTo(1);
+      else {
+        cur = i;
+        updateChrome();
+      }
+    }
+
     // Smoothly bring frame `i` to the centre of the screen. We tween
     // scrollLeft ourselves (native smooth scroll is unreliable while
     // scroll-snap is mandatory), lifting snap for the duration of the glide.
     let animId = 0;
     function centerOn(i: number) {
-      const f = frames[Math.max(0, Math.min(last, i))];
+      const clamped = Math.max(0, Math.min(lastIdx, i));
+      const f = allFrames[clamped];
       const sr = strip.getBoundingClientRect();
       const fr = f.getBoundingClientRect();
       const from = strip.scrollLeft;
@@ -159,6 +202,7 @@ const frames = [
       const dist = to - from;
       if (reduce || Math.abs(dist) < 2) {
         strip.scrollLeft = to;
+        settle(clamped);
         schedule();
         return;
       }
@@ -173,17 +217,21 @@ const frames = [
         strip.scrollLeft = from + dist * e;
         schedule();
         if (p < 1) requestAnimationFrame(step);
-        else strip.style.scrollSnapType = "";
+        else {
+          strip.style.scrollSnapType = "";
+          settle(clamped);
+        }
       }
       requestAnimationFrame(step);
     }
 
-    // Arrows are the primary control. Click a neighbouring frame to centre it,
-    // and Left/Right arrow keys step too. The mouse wheel is left alone, so
+    // Arrows are the primary control, and — since the strip loops — are
+    // never disabled. Click a neighbouring frame to centre it, and
+    // Left/Right arrow keys step too. The mouse wheel is left alone, so
     // scrolling up and down the page works normally over the hero.
     prevBtn?.addEventListener("click", () => centerOn(cur - 1));
     nextBtn?.addEventListener("click", () => centerOn(cur + 1));
-    frames.forEach((f, i) =>
+    allFrames.forEach((f, i) =>
       f.addEventListener("click", () => {
         if (i !== cur) centerOn(i);
       }),
@@ -198,15 +246,30 @@ const frames = [
       }
     });
 
-    strip.addEventListener("scroll", schedule, { passive: true });
+    // If the visitor scrolls/swipes by hand all the way to a boundary clone
+    // (rather than via the arrows), teleport onto the matching real frame
+    // once the scroll settles.
+    let scrollEndTimer = 0;
+    strip.addEventListener(
+      "scroll",
+      () => {
+        schedule();
+        window.clearTimeout(scrollEndTimer);
+        scrollEndTimer = window.setTimeout(() => {
+          if (cur === 0) teleportTo(n);
+          else if (cur === lastIdx) teleportTo(1);
+        }, 120);
+      },
+      { passive: true },
+    );
     window.addEventListener("resize", () => {
       centerOn(cur);
       schedule();
     });
 
-    // Start with the first frame centred.
+    // Start with the first real frame centred.
     requestAnimationFrame(() => {
-      centerOn(0);
+      centerOn(1);
       updateChrome();
       schedule();
     });
