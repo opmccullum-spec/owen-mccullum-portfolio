@@ -1,17 +1,21 @@
 ---
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
+import behindTheFence from "../assets/photos/behind-the-fence.jpg";
+import keepingItUp from "../assets/photos/keeping-it-up.jpg";
+import circleOfFlags from "../assets/photos/circle-of-flags.jpg";
 import bridgeGlow from "../assets/photos/bridge-glow.jpg";
+import amongTheColumns from "../assets/photos/among-the-columns.jpg";
+import theShadowLine from "../assets/photos/the-shadow-line.jpg";
+import theStretch from "../assets/photos/the-stretch.jpg";
 import theRodeo from "../assets/photos/the-rodeo.jpg";
-import crimsonStage from "../assets/photos/crimson-stage.jpg";
-import theSidewalk from "../assets/photos/the-sidewalk.jpg";
+import downtownStride from "../assets/photos/downtown-stride.jpg";
 import theLedge from "../assets/photos/the-ledge.jpg";
+import yellowMesh from "../assets/photos/yellow-mesh.jpg";
 import memorialFountain from "../assets/photos/memorial-fountain.jpg";
 import theQueue from "../assets/photos/the-queue.jpg";
-import yellowMesh from "../assets/photos/yellow-mesh.jpg";
 import fieldOfFlags from "../assets/photos/field-of-flags.jpg";
 import underTheArches from "../assets/photos/under-the-arches.jpg";
-import inThought from "../assets/photos/in-thought.jpg";
 import wornOut from "../assets/photos/worn-out.jpg";
 
 const lqipMap = lqip as Record<string, string>;
@@ -20,18 +24,25 @@ const lqipMap = lqip as Record<string, string>;
 // to the center of the screen; the centered frame is full size and opaque,
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
+//
+// bridge-glow and yellow-mesh also appear on the Portraits page — Owen
+// wanted those two mixed in here as well, not just there.
 const frames = [
+  { img: behindTheFence, file: "behind-the-fence.jpg", alt: "A man crouches to talk with a child at a security fence while a family with a stroller waits in a plaza line, a white monument visible beyond the fence." },
+  { img: keepingItUp, file: "keeping-it-up.jpg", alt: "A boy in a tracksuit keeps a soccer ball aloft on a granite plaza while a couple talks in front of a large fountain behind him." },
+  { img: circleOfFlags, file: "circle-of-flags.jpg", alt: "Visitors sit on a curved white marble bench ringed by American flags, the U.S. Capitol dome visible in the distance at dusk." },
   { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a lace skirt and cowboy boots leans against a bridge railing at golden hour, city buildings glowing behind her." },
+  { img: amongTheColumns, file: "among-the-columns.jpg", alt: "A man leans against a marble column pointing upward while another man in a dark coat looks up, inside a memorial hall." },
+  { img: theShadowLine, file: "the-shadow-line.jpg", alt: "Two boys stand at the sharp edge of sun and shadow beside the Washington Monument, the Capitol dome visible in the haze beyond." },
+  { img: theStretch, file: "the-stretch.jpg", alt: "A young woman stretches her leg up onto a black iron bollard while a crowd mingles behind a security fence on a brick sidewalk." },
   { img: theRodeo, file: "the-rodeo.jpg", alt: "A crowd in patriotic dress looks up and cheers beneath a large 'Rodeo 250' banner, the Capitol dome visible in the distance." },
-  { img: crimsonStage, file: "crimson-stage.jpg", alt: "A dancer in a patterned crop top and cargo pants strikes a pose under red stage lighting, an arm shielding their face." },
-  { img: theSidewalk, file: "the-sidewalk.jpg", alt: "An older couple walks arm in arm down a city sidewalk, the woman's tattooed arm visible." },
+  { img: downtownStride, file: "downtown-stride.jpg", alt: "A silver-haired woman with a floral arm tattoo walks down a city sidewalk beside a man, others following behind them." },
   { img: theLedge, file: "the-ledge.jpg", alt: "A family rests on a stone ledge outside a government building, kids sprawled out and a man checking his phone." },
-  { img: memorialFountain, file: "memorial-fountain.jpg", alt: "A woman sits watching a fountain at a war memorial, a family looks on nearby, an orange bag in the foreground." },
-  { img: theQueue, file: "the-queue.jpg", alt: "A line of students waits in the shadow of a monument's marble base as two people walk past." },
   { img: yellowMesh, file: "yellow-mesh.jpg", alt: "A close portrait of a person with long locs wearing a yellow cut-out mesh tank top against a clear blue sky." },
+  { img: memorialFountain, file: "memorial-fountain.jpg", alt: "A woman shields her eyes watching a fountain at a war memorial as a father and daughter look on nearby, an orange tote bag in the foreground." },
+  { img: theQueue, file: "the-queue.jpg", alt: "A line of students waits in the shadow of a monument's marble base as two people walk past." },
   { img: fieldOfFlags, file: "field-of-flags.jpg", alt: "A woman kneels in a field covered with small blue memorial flags, a city skyline in the distance." },
-  { img: underTheArches, file: "under-the-arches.jpg", alt: "A crowd gathers beneath an ornate arched arcade, a boy with red hair and a girl with pink hair standing out." },
-  { img: inThought, file: "in-thought.jpg", alt: "A black and white close portrait of a woman resting her chin on her hand, looking up in thought." },
+  { img: underTheArches, file: "under-the-arches.jpg", alt: "A crowd gathers beneath an ornate arched arcade, a red-haired boy and a pink-haired girl standing out among them." },
   { img: wornOut, file: "worn-out.jpg", alt: "Four uniformed students slump on a marble bench, exhausted, one lying face down." },
 ];
 ---
