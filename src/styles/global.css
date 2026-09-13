@@ -286,14 +286,6 @@ img {
   letter-spacing: -0.02em;
   color: var(--ink);
 }
-.cover-note {
-  grid-column: 2;
-  grid-row: 2;
-  max-width: 46ch;
-  color: var(--mute);
-  font-size: 14px;
-  line-height: 1.55;
-}
 .cover-cta {
   grid-column: 3;
   grid-row: 1;
