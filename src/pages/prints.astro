@@ -9,18 +9,20 @@ const prints = printPhotos();
 
 const title = "Prints — Owen McCullum";
 const description =
-  "Archival prints from Owen McCullum, documentary & street photographer based in Washington, D.C. — editions, pricing, and shipping.";
+  "Archival prints from Owen McCullum, documentary & street photographer based in Washington, D.C. — sizes, pricing, and shipping.";
 
-const openEdition = [
-  { name: "8 × 10 in", sub: "Open edition", amt: "$150" },
-  { name: "11 × 14 in", sub: "Open edition", amt: "$275" },
-  { name: "16 × 20 in", sub: "Open edition", amt: "$450" },
+// Standard sizes the studio's own printer produces directly (max 13 in
+// wide). Panorama prints use the same 13 in width at any length up to 70
+// in, priced as a base size plus a per-inch rate rather than a fixed list.
+const printSizes = [
+  { name: "4 × 6 in", amt: "$45" },
+  { name: "5 × 7 in", amt: "$65" },
+  { name: "8.5 × 11 in", amt: "$150" },
+  { name: "11 × 17 in", amt: "$275" },
+  { name: "13 × 19 in", amt: "$425" },
 ];
-const limitedEdition = [
-  { name: "20 × 24 in", sub: "Limited — edition of 15", amt: "$1,200" },
-  { name: "30 × 40 in", sub: "Limited — edition of 15", amt: "$2,400" },
-  { name: "40 × 50 in", sub: "Limited — edition of 10", amt: "$3,800" },
-];
+const panorama = { baseLength: 19, basePrice: 425, perInchRate: 20, maxLength: 70 };
+const panoramaMaxPrice = panorama.basePrice + (panorama.maxLength - panorama.baseLength) * panorama.perInchRate;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -92,58 +94,43 @@ const limitedEdition = [
         </div>
       </section>
 
-      <!-- EDITIONS -->
-      <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">02</span>Editions</div>
-        <div class="doc-b">
-          <h3>Open and limited editions.</h3>
-          <p>
-            <strong>Open-edition</strong> prints are available on an ongoing
-            basis at the sizes listed below.
-            <strong>Limited-edition</strong> prints are signed, numbered, and
-            capped at a fixed edition size; once an edition closes it is not
-            reprinted at that size. Each limited-edition print ships with a
-            signed Certificate of Authenticity recording the title, edition
-            number, paper, and date of production.
-          </p>
-          <ul>
-            <li>Limited editions are numbered sequentially (e.g. 3/15).</li>
-            <li>A small number of artist's proofs (AP) may be retained.</li>
-            <li>Edition pricing may rise as an edition sells through.</li>
-          </ul>
-        </div>
-      </section>
-
       <!-- PRICING -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">03</span>Sizes &amp; pricing</div>
+        <div class="doc-k"><span class="doc-k-idx">02</span>Sizes &amp; pricing</div>
         <div class="doc-b">
           <h3>Print pricing.</h3>
           <p class="muted">
             Prices are in U.S. dollars and exclude framing, applicable tax, and
-            shipping. Custom sizes are available on request.
+            shipping.
           </p>
 
           <div class="pricelist" style="margin-top:8px">
-            {openEdition.map((r) => (
+            {printSizes.map((r) => (
               <div class="price-row">
-                <span class="pr-name">{r.name}<small>{r.sub}</small></span>
+                <span class="pr-name">{r.name}</span>
                 <span class="pr-amt">{r.amt}</span>
               </div>
             ))}
-            {limitedEdition.map((r) => (
-              <div class="price-row">
-                <span class="pr-name">{r.name}<small>{r.sub}</small></span>
-                <span class="pr-amt">{r.amt}</span>
-              </div>
-            ))}
+            <div class="price-row">
+              <span class="pr-name">
+                Custom panorama (13 in wide)<small>13 × {panorama.baseLength} in up to 13 × {panorama.maxLength} in</small>
+              </span>
+              <span class="pr-amt">
+                ${panorama.basePrice}–${panoramaMaxPrice.toLocaleString("en-US")}
+              </span>
+            </div>
           </div>
+          <p class="muted" style="margin-top:16px">
+            Panorama prints run the full 13 in width of the printer at any
+            length up to {panorama.maxLength} in — priced at ${panorama.basePrice} for a 13 ×{" "}
+            {panorama.baseLength} in print, plus ${panorama.perInchRate} per additional inch of length.
+          </p>
         </div>
       </section>
 
       <!-- FRAMING -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">04</span>Framing &amp; finishing</div>
+        <div class="doc-k"><span class="doc-k-idx">03</span>Framing &amp; finishing</div>
         <div class="doc-b">
           <p>
             Prints ship unframed by default, interleaved with acid-free tissue
@@ -156,7 +143,7 @@ const limitedEdition = [
 
       <!-- SHIPPING -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">05</span>Shipping &amp; handling</div>
+        <div class="doc-k"><span class="doc-k-idx">04</span>Shipping &amp; handling</div>
         <div class="doc-b">
           <p>
             Orders ship insured and tracked. Domestic U.S. delivery typically
@@ -169,22 +156,20 @@ const limitedEdition = [
 
       <!-- RETURNS -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">06</span>Returns &amp; condition</div>
+        <div class="doc-k"><span class="doc-k-idx">05</span>Returns &amp; condition</div>
         <div class="doc-b">
           <p>
             Because prints are produced to order, sales are final except where a
             print arrives damaged or defective. Notify the studio within 7 days
             of delivery, with photographs of the item and packaging, and a
-            replacement will be produced at no charge. Limited-edition works are
-            not eligible for return once the Certificate of Authenticity has
-            been transferred.
+            replacement will be produced at no charge.
           </p>
         </div>
       </section>
 
       <!-- COPYRIGHT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">07</span>Copyright &amp; ownership</div>
+        <div class="doc-k"><span class="doc-k-idx">06</span>Copyright &amp; ownership</div>
         <div class="doc-b">
           <p>
             Copyright in all photographs is retained by Owen McCullum at all
@@ -197,7 +182,7 @@ const limitedEdition = [
 
       <!-- PAYMENT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">08</span>Payment &amp; terms</div>
+        <div class="doc-k"><span class="doc-k-idx">07</span>Payment &amp; terms</div>
         <div class="doc-b">
           <p>
             Print orders are payable in full before production. Quotes are
@@ -214,7 +199,7 @@ const limitedEdition = [
 
       <!-- CONTACT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">09</span>To order</div>
+        <div class="doc-k"><span class="doc-k-idx">08</span>To order</div>
         <div class="doc-b">
           <h3>Start here.</h3>
           <p>
