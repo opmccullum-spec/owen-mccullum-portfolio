@@ -12,17 +12,13 @@ const description =
   "Archival prints from Owen McCullum, documentary & street photographer based in Washington, D.C. — sizes, pricing, and shipping.";
 
 // Standard sizes the studio's own printer produces directly (max 13
-// inches wide). Panorama prints use the same 13 inches of width at any
-// length up to 70 inches, priced as a base size plus a per-inch rate
-// rather than a fixed list.
+// inches wide).
 const printSizes = [
   { name: "5 × 7 inches", amt: "$45" },
   { name: "8.5 × 11 inches", amt: "$50" },
   { name: "11 × 17 inches", amt: "$60" },
   { name: "13 × 19 inches", amt: "$65" },
 ];
-const panorama = { baseLength: 19, basePrice: 65, perInchRate: 1, maxLength: 70 };
-const panoramaMaxPrice = panorama.basePrice + (panorama.maxLength - panorama.baseLength) * panorama.perInchRate;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -111,20 +107,7 @@ const panoramaMaxPrice = panorama.basePrice + (panorama.maxLength - panorama.bas
                 <span class="pr-amt">{r.amt}</span>
               </div>
             ))}
-            <div class="price-row">
-              <span class="pr-name">
-                Custom panorama (13 inches wide)<small>13 × {panorama.baseLength} inches up to 13 × {panorama.maxLength} inches</small>
-              </span>
-              <span class="pr-amt">
-                ${panorama.basePrice}–${panoramaMaxPrice.toLocaleString("en-US")}
-              </span>
-            </div>
           </div>
-          <p class="muted" style="margin-top:16px">
-            Panorama prints run the full 13 inches of width at any length up
-            to {panorama.maxLength} inches — priced at ${panorama.basePrice} for a 13 ×{" "}
-            {panorama.baseLength} inch print, plus ${panorama.perInchRate} per additional inch of length.
-          </p>
         </div>
       </section>
 
