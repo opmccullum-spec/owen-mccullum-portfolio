@@ -30,14 +30,10 @@ export interface Series {
   /** Display index, museum-wing style (01, 02, …) */
   index: string;
   title: string;
-  /** One-line curatorial note */
-  note: string;
 }
 
 /** The bodies of work, in display order. */
-export const series: Series[] = [
-  { id: "portraits", index: "01", title: "Portraits", note: "People met at arm's length — a gesture, a held gaze, a face turned to the light." },
-];
+export const series: Series[] = [{ id: "portraits", index: "01", title: "Portraits" }];
 
 // Order within each section is the on-page order — matches Owen's own
 // filmstrip sequence (left to right). Locations are kept general where the
