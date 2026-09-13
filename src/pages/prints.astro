@@ -7,9 +7,9 @@ import { printPhotos, getPhotoImage } from "../data/photos";
 
 const prints = printPhotos();
 
-const title = "Prints & Licensing — Owen McCullum";
+const title = "Prints — Owen McCullum";
 const description =
-  "Archival prints and image licensing from Owen McCullum, documentary & street photographer based in Washington, D.C. — editions, pricing, and usage terms.";
+  "Archival prints from Owen McCullum, documentary & street photographer based in Washington, D.C. — editions, pricing, and shipping.";
 
 const openEdition = [
   { name: "8 × 10 in", sub: "Open edition", amt: "$150" },
@@ -21,23 +21,17 @@ const limitedEdition = [
   { name: "30 × 40 in", sub: "Limited — edition of 15", amt: "$2,400" },
   { name: "40 × 50 in", sub: "Limited — edition of 10", amt: "$3,800" },
 ];
-const licensing = [
-  { name: "Editorial — online, one-time use", sub: "Single article or post, 1-year term", amt: "from $250" },
-  { name: "Editorial — print", sub: "Quarter to full page, per insertion", amt: "$350 – $900" },
-  { name: "Commercial / advertising", sub: "Quoted by scope, term & territory", amt: "from $1,500" },
-];
 ---
 
 <BaseLayout title={title} description={description}>
   <Header />
   <main class="wrap page">
     <header class="page-head reveal">
-      <p class="page-eyebrow">Prints &amp; Licensing</p>
-      <h1 class="page-title">Own the work, or license it.</h1>
+      <p class="page-eyebrow">Prints</p>
+      <h1 class="page-title">Own the work.</h1>
       <p class="page-lede">
         Archival prints of selected photographs are available directly from the
-        studio, and most images may be licensed for editorial or commercial use.
-        Owen McCullum is based in Washington, D.C., and ships worldwide.
+        studio. Owen McCullum is based in Washington, D.C., and ships worldwide.
       </p>
     </header>
 
@@ -188,109 +182,30 @@ const licensing = [
         </div>
       </section>
 
-      <!-- LICENSING OVERVIEW -->
-      <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">07</span>Image licensing</div>
-        <div class="doc-b">
-          <h3>Licensing the photographs.</h3>
-          <p>
-            Most images may be licensed for editorial or commercial use. A
-            license grants limited, non-exclusive permission to reproduce a
-            specified image for a defined use, term, and territory; it does not
-            transfer copyright or ownership. Fees are quoted per use and depend
-            on the medium, audience, duration, territory, and exclusivity
-            required.
-          </p>
-
-          <div class="pricelist" style="margin-top:8px">
-            {licensing.map((r) => (
-              <div class="price-row">
-                <span class="pr-name">{r.name}<small>{r.sub}</small></span>
-                <span class="pr-amt">{r.amt}</span>
-              </div>
-            ))}
-          </div>
-          <p class="muted" style="margin-top:16px">
-            Figures above are starting points for scoping; every license is
-            confirmed in a written agreement before files are released.
-          </p>
-        </div>
-      </section>
-
-      <!-- EDITORIAL -->
-      <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">08</span>Editorial use</div>
-        <div class="doc-b">
-          <p>
-            Editorial licenses cover news, commentary, education, and other
-            non-promotional contexts. Editorial use does not require model or
-            property releases, but the licensee is responsible for ensuring its
-            use is genuinely editorial and not defamatory. A credit line —
-            <em>“© Owen McCullum”</em> — must appear adjacent to or beneath each
-            reproduction.
-          </p>
-        </div>
-      </section>
-
-      <!-- COMMERCIAL -->
-      <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">09</span>Commercial use</div>
-        <div class="doc-b">
-          <p>
-            Commercial and advertising licenses cover promotion of a product,
-            service, or brand. Because the photographs are documentary in
-            nature and may depict identifiable people or private property,
-            commercial use may require model or property releases; the studio
-            will advise on a per-image basis. Releases are not guaranteed for
-            every image, and some photographs are not available for commercial
-            licensing.
-          </p>
-        </div>
-      </section>
-
-      <!-- RIGHTS & RESTRICTIONS -->
-      <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">10</span>Rights &amp; restrictions</div>
-        <div class="doc-b">
-          <p>Unless expressly agreed in writing, all licenses are subject to the following:</p>
-          <ul>
-            <li>The license is non-exclusive, non-transferable, and non-sublicensable.</li>
-            <li>The image may not be altered, cropped, or manipulated beyond minor sizing without consent.</li>
-            <li>The image may not be resold, redistributed, or made available for download as a standalone file.</li>
-            <li>The image may not be used to train, develop, or improve any machine-learning or generative-AI system.</li>
-            <li>Use beyond the agreed medium, term, or territory requires a new license.</li>
-          </ul>
-        </div>
-      </section>
-
       <!-- COPYRIGHT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">11</span>Copyright &amp; ownership</div>
+        <div class="doc-k"><span class="doc-k-idx">07</span>Copyright &amp; ownership</div>
         <div class="doc-b">
           <p>
             Copyright in all photographs is retained by Owen McCullum at all
             times. Purchase of a print conveys ownership of that physical object
-            only and confers no reproduction rights. A license conveys the
-            specific rights stated in its agreement and nothing more. All
-            rights not expressly granted are reserved.
+            only and confers no reproduction rights. All rights not expressly
+            granted are reserved.
           </p>
         </div>
       </section>
 
       <!-- PAYMENT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">12</span>Payment &amp; terms</div>
+        <div class="doc-k"><span class="doc-k-idx">08</span>Payment &amp; terms</div>
         <div class="doc-b">
           <p>
-            Print orders are payable in full before production. Licensing fees
-            are invoiced on agreement and are due within 30 days; usage rights
-            take effect only upon receipt of payment in full. A purchase order
-            or unpaid invoice does not constitute a license. Quotes are valid
-            for 30 days.
+            Print orders are payable in full before production. Quotes are
+            valid for 30 days.
           </p>
           <p class="muted">
             This page summarizes standard terms for convenience and does not
-            itself constitute a contract or legal advice. Any sale or license is
+            itself constitute a contract or legal advice. Any sale is
             governed by a separate written agreement, interpreted under the laws
             of the District of Columbia.
           </p>
@@ -299,12 +214,12 @@ const licensing = [
 
       <!-- CONTACT -->
       <section class="doc-row reveal">
-        <div class="doc-k"><span class="doc-k-idx">13</span>To order or license</div>
+        <div class="doc-k"><span class="doc-k-idx">09</span>To order</div>
         <div class="doc-b">
           <h3>Start here.</h3>
           <p>
-            Tell the studio which photograph you have in mind and how you'd like
-            to use it, and you'll receive a quote and a written agreement.
+            Tell the studio which photograph you have in mind, and you'll
+            receive pricing and next steps to order.
           </p>
           <p>
             <a class="big" href="/contact">Contact the studio →</a>
