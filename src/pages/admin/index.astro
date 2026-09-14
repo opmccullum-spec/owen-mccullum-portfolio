@@ -291,10 +291,10 @@ shootRows.sort(
       <div class="contact-grid reveal">
         {bookings.map((booking) => (
           <div class="contact-block">
-            <p class="ck">
+            <p class="ck">{booking.profiles?.full_name || booking.profiles?.email}</p>
+            <p class="inq-note" style="margin-bottom: 14px;">
               {booking.status} · {formatSession(booking.starts_at, booking.ends_at)}
             </p>
-            <p class="big">{booking.profiles?.full_name || booking.profiles?.email}</p>
             {booking.category && booking.hours && booking.estimated_price_cents != null && (
               <p class="inq-note">
                 Estimate: {CATEGORY_LABELS[booking.category as BookingCategory] ?? booking.category} · {booking.hours}{" "}
