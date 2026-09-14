@@ -32,11 +32,17 @@ export type ContractStatus = "draft" | "sent" | "signed" | "voided";
 export type Contract = {
   id: string;
   client_id: string;
+  booking_id: string | null;
   documenso_document_id: string | null;
   title: string;
   status: ContractStatus;
   signed_pdf_url: string | null;
   signing_url: string | null;
+  sign_token: string | null;
+  prefill_fields: Record<string, string> | null;
+  signed_at: string | null;
+  signer_ip: string | null;
+  signer_user_agent: string | null;
   created_at: string;
 };
 

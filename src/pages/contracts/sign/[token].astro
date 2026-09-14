@@ -1,0 +1,101 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Header from "../../../components/Header.astro";
+import Footer from "../../../components/Footer.astro";
+import { supabaseAdmin } from "../../../lib/supabase/admin";
+import type { ContractPrefillFields } from "../../../lib/contractPdf";
+
+const { token } = Astro.params;
+
+const { data: contract } = await supabaseAdmin
+  .from("contracts")
+  .select("id, title, status, signed_pdf_url, prefill_fields")
+  .eq("sign_token", token ?? "")
+  .maybeSingle();
+
+const error = Astro.url.searchParams.get("error");
+const fields = (contract?.prefill_fields ?? null) as ContractPrefillFields | null;
+---
+
+<BaseLayout title="Sign contract — Owen McCullum" description="Review and sign your photography contract.">
+  <Header />
+  <main class="wrap page">
+    {!contract ? (
+      <header class="page-head reveal">
+        <p class="page-eyebrow">Contract</p>
+        <h1 class="page-title">Link not found.</h1>
+        <p class="page-lede">This signing link doesn't match anything. Double-check the link from your email, or reach out to Owen directly.</p>
+      </header>
+    ) : contract.status === "signed" ? (
+      <header class="page-head reveal">
+        <p class="page-eyebrow">Contract</p>
+        <h1 class="page-title">Already signed.</h1>
+        <p class="page-lede">
+          Thanks — <strong>{contract.title}</strong> has already been signed.
+          {contract.signed_pdf_url && (
+            <>
+              {" "}
+              <a href={contract.signed_pdf_url} target="_blank" rel="noopener">View the signed copy →</a>
+            </>
+          )}
+        </p>
+      </header>
+    ) : contract.status !== "sent" ? (
+      <header class="page-head reveal">
+        <p class="page-eyebrow">Contract</p>
+        <h1 class="page-title">Link no longer active.</h1>
+        <p class="page-lede">This contract has been cancelled. If that doesn't seem right, reach out to Owen directly.</p>
+      </header>
+    ) : (
+      <>
+        <header class="page-head reveal">
+          <p class="page-eyebrow">Contract</p>
+          <h1 class="page-title">{contract.title}</h1>
+          <p class="page-lede">
+            Review the details below, then type your name to sign. <a href="/documents/photography-agreement-template.pdf" target="_blank" rel="noopener">Read the full agreement →</a>
+          </p>
+        </header>
+
+        {fields && (
+          <div class="contact-block reveal" style="margin-bottom: 40px;">
+            <p class="ck">Details</p>
+            <p>{fields.clientName}{fields.address ? ` · ${fields.address}` : ""}</p>
+            <p>{fields.email}{fields.phone ? ` · ${fields.phone}` : ""}</p>
+            <p>Session: {fields.sessionDate}{fields.startEndTime ? `, ${fields.startEndTime}` : ""}</p>
+            {fields.location && <p>Location: {fields.location}</p>}
+            <p>Total fee: ${fields.totalFee} &nbsp;·&nbsp; Retainer due now: ${fields.retainer} &nbsp;·&nbsp; Balance: ${fields.balance}</p>
+          </div>
+        )}
+
+        <form class="inquire reveal" method="POST" action="/api/contracts/sign" novalidate>
+          <p class="inq-eyebrow">Sign</p>
+          <input type="hidden" name="token" value={token} />
+
+          <div class="inq-field">
+            <label for="sign-name">Type your full legal name</label>
+            <input id="sign-name" name="signatureName" type="text" required autocomplete="name" />
+          </div>
+
+          <div class="inq-field">
+            <label for="sign-consent">
+              <input id="sign-consent" name="consent" type="checkbox" required style="margin-right: 8px;" />
+              I have reviewed the agreement above and agree that typing my name here constitutes my legal signature.
+            </label>
+          </div>
+
+          {error === "invalid" && (
+            <p class="inq-feedback inq-error" role="alert">Please type your name and check the box above.</p>
+          )}
+          {error === "sign_failed" && (
+            <p class="inq-feedback inq-error" role="alert">Something went wrong signing this contract. Please try again.</p>
+          )}
+
+          <button class="inq-submit" type="submit">Sign contract</button>
+        </form>
+      </>
+    )}
+  </main>
+  <Footer />
+</BaseLayout>

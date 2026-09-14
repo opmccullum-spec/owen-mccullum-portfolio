@@ -169,6 +169,17 @@ export function contactInquiryOwnerEmail(params: { name: string; email: string; 
   };
 }
 
+export function contractRequestEmail(params: { clientName: string; title: string; signUrl: string }) {
+  return {
+    subject: `Please sign: ${params.title}`,
+    html: wrapEmail(`
+      <p>Hi ${params.clientName},</p>
+      <p>Owen sent over a contract for your session — please review and sign it here:</p>
+      <p><a href="${params.signUrl}">${params.title} →</a></p>
+    `),
+  };
+}
+
 export function contractSignedOwnerEmail(params: { clientName: string; title: string }) {
   return {
     subject: `Contract signed — ${params.title}`,

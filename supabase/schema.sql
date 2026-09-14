@@ -248,6 +248,31 @@ alter table public.invoices add column if not exists booking_id uuid
 create index if not exists contracts_booking_id_idx on public.contracts (booking_id);
 create index if not exists invoices_booking_id_idx on public.invoices (booking_id);
 
+-- ── in-house e-signatures (Documenso replacement) ──────────────────────
+-- Contracts are now generated and signed on this site directly instead of
+-- through Documenso (its free tier rate-limited Owen's very first real
+-- send). `sign_token` is the secret the client's emailed link carries —
+-- whoever holds it can view/sign that one contract, no portal login
+-- required. `prefill_fields` holds the values entered on the admin form
+-- (client name, session date, fee, etc.) so the signing page and the PDF
+-- generator both have them without re-deriving anything. `documenso_*`
+-- naming elsewhere (documenso_document_id) is left in place, just unused.
+alter table public.contracts add column if not exists sign_token text;
+alter table public.contracts add column if not exists prefill_fields jsonb;
+alter table public.contracts add column if not exists signed_at timestamptz;
+alter table public.contracts add column if not exists signer_ip text;
+alter table public.contracts add column if not exists signer_user_agent text;
+
+create unique index if not exists contracts_sign_token_idx on public.contracts (sign_token) where sign_token is not null;
+
+-- Bucket for the final signed PDFs. Public, but every path is the
+-- contract's own random UUID — unguessable, same practical security model
+-- as the signing links themselves (and as Documenso's own token links
+-- before this).
+insert into storage.buckets (id, name, public)
+values ('signed-contracts', 'signed-contracts', true)
+on conflict (id) do nothing;
+
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your
 -- own email (that first login is what creates your profiles row):
