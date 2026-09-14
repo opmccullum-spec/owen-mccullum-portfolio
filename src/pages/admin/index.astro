@@ -317,7 +317,12 @@ shootRows.sort(
             )}
             {booking.status === "confirmed" && (
               <p class="inq-note" style="margin-top: 10px;">
-                <form method="POST" action="/api/admin/bookings/cancel" style="display:inline;">
+                <form
+                  method="POST"
+                  action="/api/admin/bookings/cancel"
+                  style="display:inline;"
+                  onsubmit="return confirm('Are you sure?');"
+                >
                   <input type="hidden" name="bookingId" value={booking.id} />
                   <button type="submit" class="portal-signout-btn">Cancel</button>
                 </form>
