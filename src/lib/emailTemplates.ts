@@ -71,8 +71,9 @@ export function bookingConfirmedEmail(params: {
       <p>Hi ${params.clientName},</p>
       <p>Your session is confirmed for:</p>
       <p><strong>${when}</strong></p>
-      <p><strong>What's next?</strong><br>You'll receive an invoice for the retainer (20% of the total cost is due up front upon booking) and a contract agreement.</p>
+      <p><strong>What's next?</strong><br>You'll receive an invoice for the retainer (20% of the total cost is due up front upon booking) and a contract agreement. Both are due in order to complete booking and secure your time.</p>
       <p>You can manage this booking anytime at the <a href="${params.portalUrl}">client portal</a>.</p>
+      <p>Can't wait to work with you!</p>
     `),
   };
 }
