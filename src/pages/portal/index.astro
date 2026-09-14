@@ -220,7 +220,12 @@ const hasGlanceItem = !!(nextSession || outstandingInvoice || pendingContract);
               {(booking.status === "pending" || booking.status === "confirmed") && (
                 <>
                   {" "}
-                  <form method="POST" action="/api/bookings/cancel" style="display:inline;">
+                  <form
+                    method="POST"
+                    action="/api/bookings/cancel"
+                    style="display:inline;"
+                    onsubmit="return confirm('Are you sure you want to cancel? Any fees paid at this time are non-refundable.');"
+                  >
                     <input type="hidden" name="bookingId" value={booking.id} />
                     <button type="submit" class="portal-signout-btn">Cancel</button>
                   </form>
