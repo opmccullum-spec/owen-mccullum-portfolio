@@ -1454,6 +1454,10 @@ html.js .hero-strip {
 }
 .inq-error {
   color: #b3261e;
+  padding: 10px 14px;
+  border: 1px solid #b3261e;
+  border-radius: 2px;
+  background: rgba(179, 38, 30, 0.06);
 }
 .inq-error a {
   color: #b3261e;

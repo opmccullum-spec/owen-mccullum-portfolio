@@ -29,12 +29,7 @@ const prefillEmail = Astro.url.searchParams.get("email") ?? "";
 const prefillName = Astro.url.searchParams.get("clientName") ?? "";
 
 const error = Astro.url.searchParams.get("error");
-const errorMessage =
-  error === "create_failed"
-    ? "Something went wrong creating that contract. Please try again."
-    : error === "not_configured"
-      ? "The contract template isn't set up yet — add DOCUMENSO_TEMPLATE_ID to the environment first."
-      : null;
+const errorMessage = error === "create_failed" ? "Something went wrong creating that contract. Please try again." : null;
 ---
 
 <BaseLayout title="New Contract — Owen McCullum" description="Send a new contract to a client for signature.">

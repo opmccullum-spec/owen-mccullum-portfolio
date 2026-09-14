@@ -4,7 +4,8 @@ import type { APIRoute } from "astro";
 import { requireAdminApi } from "../../../../lib/auth";
 import { supabaseAdmin } from "../../../../lib/supabase/admin";
 import { findOrCreateClient } from "../../../../lib/supabase/findOrCreateClient";
-import { getTemplate, useTemplate, CONTRACT_FIELDS, signingUrlFromToken } from "../../../../lib/documenso";
+import { sendEmail } from "../../../../lib/resend";
+import { contractRequestEmail } from "../../../../lib/emailTemplates";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -12,9 +13,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const auth = await requireAdminApi(request, cookies);
   if (auth instanceof Response) return auth;
-
-  const templateId = import.meta.env.DOCUMENSO_TEMPLATE_ID;
-  if (!templateId) return redirect("/admin/contracts/new?error=not_configured");
 
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim();
@@ -38,23 +36,18 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const retainer = (totalFee * 0.2).toFixed(2);
   const balance = (totalFee * 0.8).toFixed(2);
 
-  const prefillFields = (
-    [
-      [CONTRACT_FIELDS.clientName, clientName],
-      [CONTRACT_FIELDS.clientNamePrint, clientName],
-      [CONTRACT_FIELDS.address, address],
-      [CONTRACT_FIELDS.email, email],
-      [CONTRACT_FIELDS.phone, phone],
-      [CONTRACT_FIELDS.sessionDate, sessionDate],
-      [CONTRACT_FIELDS.startEndTime, startEndTime],
-      [CONTRACT_FIELDS.location, location],
-      [CONTRACT_FIELDS.totalFee, totalFee.toFixed(2)],
-      [CONTRACT_FIELDS.retainer, retainer],
-      [CONTRACT_FIELDS.balance, balance],
-    ] as const
-  )
-    .filter(([, value]) => value.length > 0)
-    .map(([id, value]) => ({ id, type: "text" as const, value }));
+  const prefillFields = {
+    clientName,
+    address,
+    email,
+    phone,
+    sessionDate,
+    startEndTime,
+    location,
+    totalFee: totalFee.toFixed(2),
+    retainer,
+    balance,
+  };
 
   try {
     const authUser = await findOrCreateClient(email);
@@ -70,38 +63,32 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       }
     }
 
-    const template = await getTemplate(Number(templateId));
-    const signerRecipient = template.recipients.find((r) => r.role === "SIGNER") ?? template.recipients[0];
-    if (!signerRecipient) throw new Error("template has no recipients configured");
-
     const contractId = crypto.randomUUID();
-
-    const result = await useTemplate({
-      templateId: Number(templateId),
-      recipients: [{ id: signerRecipient.id, email, name: clientName }],
-      externalId: contractId,
-      prefillFields,
-    });
-
-    const recipient = result.recipients.find((r) => r.id === signerRecipient.id) ?? result.recipients[0];
+    const signToken = crypto.randomUUID();
+    const signingUrl = `${new URL(request.url).origin}/contracts/sign/${signToken}`;
 
     const { error: insertErr } = await supabaseAdmin.from("contracts").insert({
       id: contractId,
       client_id: authUser.id,
       booking_id: bookingId,
-      documenso_document_id: String(result.id),
       title,
       status: "sent",
-      signing_url: recipient?.token ? signingUrlFromToken(recipient.token) : null,
+      prefill_fields: prefillFields,
+      sign_token: signToken,
+      signing_url: signingUrl,
     });
     if (insertErr) throw insertErr;
+
+    try {
+      const { subject, html } = contractRequestEmail({ clientName, title, signUrl: signingUrl });
+      await sendEmail({ to: email, subject, html });
+    } catch (err) {
+      console.error("failed to email client about new contract:", err instanceof Error ? err.message : err);
+    }
 
     return redirect("/admin?contracted=1");
   } catch (err) {
     console.error("create contract failed:", err instanceof Error ? err.message : err);
-    if (err && typeof err === "object" && "body" in err) {
-      console.error("Documenso error body:", JSON.stringify((err as { body: unknown }).body, null, 2));
-    }
     return redirect("/admin/contracts/new?error=create_failed");
   }
 };
