@@ -41,21 +41,10 @@ export const series: Series[] = [{ id: "portraits", index: "01", title: "Portrai
 // likeness are not offered as prints.
 // Every entry is span: 6 (locked to two photos per row, out of the 12-column
 // grid) — see Owen's note about this on the Portraits page specifically.
-export const photos: Photo[] = [
-  // ── 01 · Portraits ───────────────────────────────────────────
-  { file: "bridge-glow.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "the-golden-hour.jpg",  location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "yellow-mesh.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "unicorn-wig.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "auburn-curls.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "the-smile.jpg",        location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "man-and-dog.jpg",      location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "quiet-companions.jpg", location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "the-red-couch.jpg",    location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "in-thought.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "resting-gaze.jpg",     location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-  { file: "leaning-in.jpg",       location: "Washington, D.C. — 2025", series: "portraits", span: 6, shape: "port" },
-];
+//
+// Empty while the photo set is being replaced — add new images to
+// src/assets/photos/ and list them here.
+export const photos: Photo[] = [];
 
 /** Photos for one section, in display order. */
 export function photosBySeries(id: SeriesId): Photo[] {
