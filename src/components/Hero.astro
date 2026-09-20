@@ -1,7 +1,14 @@
 ---
-import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
+import bareBranches from "../assets/photos/bare-branches.jpg";
+import bridgeGlow from "../assets/photos/bridge-glow.jpg";
+import steadyGaze from "../assets/photos/steady-gaze.jpg";
+import canopyLight from "../assets/photos/canopy-light.jpg";
+import leaningTrunk from "../assets/photos/leaning-trunk.jpg";
+import locsAndChains from "../assets/photos/locs-and-chains.jpg";
+import riverLight from "../assets/photos/river-light.jpg";
+import reachingForLight from "../assets/photos/reaching-for-light.jpg";
 
 const lqipMap = lqip as Record<string, string>;
 
@@ -9,10 +16,16 @@ const lqipMap = lqip as Record<string, string>;
 // to the center of the screen; the centered frame is full size and opaque,
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
-//
-// Empty while the photo set is being replaced — add new images to
-// src/assets/photos/ and list them here.
-const frames: { img: ImageMetadata; file: string; alt: string }[] = [];
+const frames = [
+  { img: bareBranches, file: "bare-branches.jpg", alt: "Bare, leafless branches reach up against a pale sky above a tangle of underbrush, a single small cloud drifting past." },
+  { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a crocheted top, layered necklaces, and cowboy boots leans against a bridge railing at dusk, city buildings and passing headlights softly blurred behind her, in black and white." },
+  { img: steadyGaze, file: "steady-gaze.jpg", alt: "A close black-and-white portrait of a man with cornrows resting his head against his raised hand, leaning on the back of a chair." },
+  { img: canopyLight, file: "canopy-light.jpg", alt: "Looking straight up through a dense tree canopy, sunlit leaves and branching limbs fill the frame against a pale sky." },
+  { img: leaningTrunk, file: "leaning-trunk.jpg", alt: "A tall, leaning tree trunk catches the light in a dense forest understory, surrounded by tangled branches and undergrowth." },
+  { img: locsAndChains, file: "locs-and-chains.jpg", alt: "A close portrait of a person with long locs and layered chain necklaces, wearing a cut-out mesh top, lit in warm side light." },
+  { img: riverLight, file: "river-light.jpg", alt: "Sunlight streaks across a calm river's surface, seen through overhanging branches and leaves from the bank above." },
+  { img: reachingForLight, file: "reaching-for-light.jpg", alt: "A single leafy vine sprig reaches out from the dark base of a tree trunk, lit against a blurred, shadowed background." },
+];
 ---
 
 <section class="hero">
