@@ -1,19 +1,7 @@
 ---
+import type { ImageMetadata } from "astro";
 import { Image } from "astro:assets";
 import lqip from "../data/lqip.json";
-import bridgeGlow from "../assets/photos/bridge-glow.jpg";
-import stiltPerformer from "../assets/photos/stilt-performer.jpg";
-import flagsAtTheCourt from "../assets/photos/flags-at-the-court.jpg";
-import kiteFestival from "../assets/photos/kite-festival.jpg";
-import parkBenchRally from "../assets/photos/park-bench-rally.jpg";
-import trumpMustGo from "../assets/photos/trump-must-go.jpg";
-import rodeoCrowd from "../assets/photos/rodeo-crowd.jpg";
-import flyoverWatchers from "../assets/photos/flyover-watchers.jpg";
-import underTheArches from "../assets/photos/under-the-arches.jpg";
-import winterRally from "../assets/photos/winter-rally.jpg";
-import wornOut from "../assets/photos/worn-out.jpg";
-import theShadowLine from "../assets/photos/the-shadow-line.jpg";
-import steadyGaze from "../assets/photos/steady-gaze.jpg";
 
 const lqipMap = lqip as Record<string, string>;
 
@@ -21,21 +9,10 @@ const lqipMap = lqip as Record<string, string>;
 // to the center of the screen; the centered frame is full size and opaque,
 // while its neighbours shrink and fade. Whole images are shown, so any aspect
 // ratio (landscape or portrait) sits comfortably side by side.
-const frames = [
-  { img: bridgeGlow, file: "bridge-glow.jpg", alt: "A woman in a crocheted top, sheer lace skirt, and cowboy boots leans against a bridge railing at dusk, string-lit buildings glowing warm behind her as a car's headlights pass below." },
-  { img: stiltPerformer, file: "stilt-performer.jpg", alt: "A performer on stilts in an iridescent winged costume and a feathered crown twirls beneath a disco ball, colorful stage lights radiating behind her." },
-  { img: flagsAtTheCourt, file: "flags-at-the-court.jpg", alt: "A bearded man in a wide-brim hat and leather work gloves holds an American flag outside the Supreme Court, protest flags and signs waving around him." },
-  { img: kiteFestival, file: "kite-festival.jpg", alt: "A woman photographs kites overhead with her phone at the base of the Washington Monument, an eagle-shaped kite trailing ribbon streamers above the crowd." },
-  { img: parkBenchRally, file: "park-bench-rally.jpg", alt: "Two women in patriotic red, white, and blue sit on a park bench at a rally, one in a walking boot, a crowd in flag-themed clothing gathered behind the fence." },
-  { img: trumpMustGo, file: "trump-must-go.jpg", alt: "A dense crowd holds a wall of protest signs and an orange banner in the street, a government building with a large portrait banner rising behind them." },
-  { img: rodeoCrowd, file: "rodeo-crowd.jpg", alt: "A crowd in patriotic dress shields their eyes and holds up phones beneath a 'Rodeo 250' banner, a leopard-print umbrella open against the sun." },
-  { img: flyoverWatchers, file: "flyover-watchers.jpg", alt: "Silhouetted spectators crane their necks to photograph a jet flying over on a hazy afternoon, one pointing skyward beside a stone monument wall." },
-  { img: underTheArches, file: "under-the-arches.jpg", alt: "A crowd rests and scrolls their phones on marble steps beneath an ornately tiled colonnade, a red-haired teenager standing out above the seated group." },
-  { img: winterRally, file: "winter-rally.jpg", alt: "A man in a beanie and orange bandana speaks into a microphone at a snow-covered rally, the Washington Monument rising pale behind him as others huddle in winter coats." },
-  { img: wornOut, file: "worn-out.jpg", alt: "Four people in dark uniforms sit slumped on a marble bench in the sun, one lying face-down reading a folded paper, another pulling a hood over their eyes." },
-  { img: theShadowLine, file: "the-shadow-line.jpg", alt: "A boy in a white shirt and pink shorts stands at the sharp edge of sun and shadow beside the Washington Monument, a smaller child and the distant Capitol dome visible past the flags." },
-  { img: steadyGaze, file: "steady-gaze.jpg", alt: "A close studio portrait of a man with braided hair resting his head against his raised hand, dramatic low light against a dark background." },
-];
+//
+// Empty while the photo set is being replaced — add new images to
+// src/assets/photos/ and list them here.
+const frames: { img: ImageMetadata; file: string; alt: string }[] = [];
 ---
 
 <section class="hero">
