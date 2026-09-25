@@ -120,6 +120,12 @@ import Footer from "../components/Footer.astro";
   #book-confirmation {
     margin-top: 32px;
   }
+  /* Success color for the "Request sent…" message — .inq-feedback's default
+     is a neutral mute, same as .inq-error's own red, scoped here since this
+     page is the only place a success (vs. error) state needs it. */
+  #book-confirmation {
+    color: #2e7d32;
+  }
   /* The time field is a plain <select> populated from /api/availability
      (real Google Calendar free/busy) rather than a native <input
      type="time"> — after several rounds of CSS fixes, the native
