@@ -4,6 +4,7 @@ export const prerender = false;
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
+import DocFill from "../../../components/DocFill.astro";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import type { ContractPrefillFields } from "../../../lib/contractPdf";
 
@@ -16,7 +17,9 @@ const { data: contract } = await supabaseAdmin
   .maybeSingle();
 
 const error = Astro.url.searchParams.get("error");
-const fields = (contract?.prefill_fields ?? null) as ContractPrefillFields | null;
+const f = (contract?.prefill_fields ?? null) as ContractPrefillFields | null;
+
+const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 ---
 
 <BaseLayout title="Sign contract — Owen McCullum" description="Review and sign your photography contract.">
@@ -54,46 +57,382 @@ const fields = (contract?.prefill_fields ?? null) as ContractPrefillFields | nul
           <p class="page-eyebrow">Contract</p>
           <h1 class="page-title">{contract.title}</h1>
           <p class="page-lede">
-            Review the details below, then type your name to sign. <a href="/documents/photography-agreement-template.pdf" target="_blank" rel="noopener">Read the full agreement →</a>
+            This is your actual agreement, in full — every blank Owen already filled in is highlighted below, and
+            a few are left for you to fill in yourself where they apply. Read it over, fill in anything that's
+            missing, then sign at the bottom.
           </p>
         </header>
 
-        {fields && (
-          <div class="contact-block reveal" style="margin-bottom: 40px;">
-            <p class="ck">Details</p>
-            <p>{fields.clientName}{fields.address ? ` · ${fields.address}` : ""}</p>
-            <p>{fields.email}{fields.phone ? ` · ${fields.phone}` : ""}</p>
-            <p>Session: {fields.sessionDate}{fields.startEndTime ? `, ${fields.startEndTime}` : ""}</p>
-            {fields.location && <p>Location: {fields.location}</p>}
-            <p>Total fee: ${fields.totalFee} &nbsp;·&nbsp; Retainer due now: ${fields.retainer} &nbsp;·&nbsp; Balance: ${fields.balance}</p>
-          </div>
+        {error === "invalid" && (
+          <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 24px;">
+            Please type your name and check the consent box at the bottom before submitting.
+          </p>
+        )}
+        {error === "sign_failed" && (
+          <p class="inq-feedback inq-error reveal" role="alert" style="margin-bottom: 24px;">
+            Something went wrong signing this contract. Please try again.
+          </p>
         )}
 
-        <form class="inquire reveal" method="POST" action="/api/contracts/sign" novalidate>
-          <p class="inq-eyebrow">Sign</p>
+        <form method="POST" action="/api/contracts/sign" novalidate>
           <input type="hidden" name="token" value={token} />
 
-          <div class="inq-field">
-            <label for="sign-name">Type your full legal name</label>
-            <input id="sign-name" name="signatureName" type="text" required autocomplete="name" />
+          <article class="doc-b reveal" style="max-width: 720px; margin-bottom: 48px;">
+            <h3 style="margin-bottom: 4px;">PHOTOGRAPHY SERVICE AND MODEL RELEASE AGREEMENT</h3>
+            <p><strong>Photographer / Studio Name:</strong> Owen McCullum Photography</p>
+            <p><strong>Email / Phone:</strong> owenmcc.photo@gmail.com / (518) 335-8575</p>
+            <p>(the "Photographer"), and</p>
+            <p>
+              <strong>Client Name:</strong> <DocFill value={f?.clientName} /><br />
+              <strong>Address:</strong> <DocFill value={f?.address} /><br />
+              <strong>Email (Required) / Phone (Optional):</strong> <DocFill value={f?.email} /> / <DocFill value={f?.phone} />
+            </p>
+            <p>(the "Client"), collectively referred to as the "Parties."</p>
+          </article>
+
+          <div class="doc">
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">01</span>Session Details</div>
+              <div class="doc-b">
+                <p>The Photographer agrees to provide photography services (the "Services") to the Client as described below:</p>
+                <p>
+                  <strong>Date(s) of Session:</strong> <DocFill value={f?.sessionDate} /><br />
+                  <strong>Start / End Time:</strong> <DocFill value={f?.startEndTime} /><br />
+                  <strong>Location(s):</strong> <DocFill value={f?.location} />
+                </p>
+                <p>
+                  <strong>Additional details or special requests</strong> (optional — fill in anything Owen should know):<br />
+                  <textarea
+                    class="doc-fill-input"
+                    name="additionalDetails"
+                    rows="2"
+                    maxlength="500"
+                    placeholder="e.g. specific poses, outfit changes, a pet joining the session…"
+                  ></textarea>
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">02</span>Fees and Payment</div>
+              <div class="doc-b">
+                <ul>
+                  <li>Total Session Fee: $<DocFill value={f?.totalFee} /></li>
+                  <li>
+                    Retainer / Deposit: 20% of the Total Session Fee ($<DocFill value={f?.retainer} />), due immediately
+                    upon signing this Photography Service and Model Release Agreement ("Agreement") to reserve the
+                    Client's date on the Photographer's calendar. The date is not considered booked or confirmed until
+                    this retainer is received. This retainer is non-refundable.
+                  </li>
+                  <li>
+                    Balance Due: The remaining 80% of the Total Session Fee ($<DocFill value={f?.balance} />), due
+                    within 7 days after the photoshoot, via cash or online portal payment.
+                  </li>
+                  <li>Additional hours beyond the scheduled session will be billed at a 20%-discounted rate of the initial hour for each additional hour.</li>
+                  <li>
+                    If the remaining 80% of the Total Session Fee is not paid within 7 days after the photoshoot, a late
+                    payment fee of $50 is immediately due. Late payment fees of 1.5% of the outstanding balance are due
+                    each month thereafter (or the maximum allowed by law) that the balance remains overdue.
+                  </li>
+                  <li>
+                    If the balance remains unpaid 30 days after its original due date, the Photographer reserves the
+                    right to pursue all available remedies, including formal written demand, the dispute resolution
+                    process outlined in Section 14, and legal action in a court of competent jurisdiction, including
+                    small claims court.
+                  </li>
+                  <li>Sales tax, travel fees, and other expenses, if applicable, are the responsibility of the Client and will be itemized separately.</li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">03</span>Delivery of Images</div>
+              <div class="doc-b">
+                <ul>
+                  <li>
+                    The Photographer will deliver fully edited digital images (the "Images") within 7 days of the
+                    session, unless a different delivery timeline is agreed upon in writing by both Parties in advance
+                    (e.g., expedited or rush delivery for an additional fee).
+                  </li>
+                  <li>
+                    If a different delivery timeline applies to this session, specify here:{" "}
+                    <input class="doc-fill-input size-m" type="text" name="deliveryTimeline" maxlength="200" placeholder="days / date" />,
+                    for an additional fee of $<input class="doc-fill-input size-s" type="text" name="deliveryFee" inputmode="decimal" maxlength="50" placeholder="0.00" />, if applicable.
+                  </li>
+                  <li>Images will be delivered via online gallery.</li>
+                  <li>Raw/unedited files are not included unless separately agreed in writing.</li>
+                  <li>Additional prints, albums, or products may be purchased separately per the Photographer's current price list.</li>
+                  <li>The Client is responsible for downloading and backing up delivered files; the Photographer is not obligated to retain files beyond 30 days after delivery.</li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">04</span>Copyright and Usage Rights</div>
+              <div class="doc-b">
+                <p>
+                  The Photographer retains full copyright and ownership of all Images created under this Agreement, in
+                  accordance with applicable copyright law. Upon full payment, the Client is granted the following
+                  usage rights:
+                </p>
+                <ul>
+                  <li>Personal, non-commercial use, including printing, sharing, and posting on personal social media with photographer credit where reasonably possible.</li>
+                  <li>The Client may not sell, license, sublicense, or use the Images for commercial purposes without the Photographer's prior written consent.</li>
+                  <li>The Client may not alter, crop heavily, apply filters that misrepresent the work, or remove any watermark without the Photographer's consent.</li>
+                </ul>
+                <p>
+                  The Photographer retains the right to use the Images for portfolio, marketing, website, social media,
+                  competitions, and other promotional purposes, unless the Client opts out below:
+                </p>
+                <p>
+                  <label class="doc-fill-check">
+                    <input type="checkbox" name="optOutPromo" />
+                    Client opts OUT of promotional use of Images by the Photographer
+                  </label>{" "}
+                  (if checked, Images will not be used publicly by the Photographer).
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">05</span>Creative Control</div>
+              <div class="doc-b">
+                <p>
+                  The Client acknowledges and agrees that the Photographer retains full creative control over the final
+                  Images, including but not limited to decisions on posing, composition, lighting, editing style, color
+                  grading, cropping, and image selection. While the Photographer welcomes the Client's preferences and
+                  will make reasonable efforts to accommodate specific requests discussed prior to or during the
+                  session, final artistic decisions rest solely with the Photographer.
+                </p>
+                <p>
+                  The Photographer is under no obligation to deliver every image captured during the session and will
+                  select and edit only those Images that meet the Photographer's professional standards.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">06</span>Model Release</div>
+              <div class="doc-b">
+                <p>
+                  In consideration of the Services provided, the Client (and/or the individual(s) being photographed,
+                  if different from the Client) grants the Photographer and its legal representatives the irrevocable
+                  and unrestricted right to use and publish photographs, likenesses, and/or recorded Images of the
+                  undersigned, in all forms and media, for editorial, portfolio, promotional, and commercial purposes,
+                  including but not limited to advertising, publications, websites, and social media, unless otherwise
+                  restricted in Section 4 above.
+                </p>
+                <p>
+                  The undersigned waives any right to inspect or approve the finished Images or any related written
+                  copy that may be used with them, and waives any claim for compensation beyond that provided in this
+                  Agreement, and releases the Photographer from any claims arising from the use of the Images,
+                  including but not limited to claims for libel, invasion of privacy, or infringement of moral rights.
+                </p>
+                <p>If the subject of the photographs is a minor, this release must be signed by a parent or legal guardian on the minor's behalf (see Section 16).</p>
+                <p>
+                  By signing this Agreement, the Client represents and warrants that the Client is authorized to grant
+                  the Model Release above on behalf of all individuals photographed during the session, including any
+                  minors present, whether as the photographed individual, a parent or legal guardian of a minor
+                  subject, or otherwise. The Client agrees to indemnify and hold the Photographer harmless from any
+                  claim brought by a photographed individual who was not, in fact, authorized to be bound by this
+                  release.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">07</span>Cancellation and Rescheduling</div>
+              <div class="doc-b">
+                <ul>
+                  <li>If cancellations by the Client are made more than 30 days before the session date, they will not receive their retainer; however, the retainer will be used as credit towards a future session.</li>
+                  <li>Cancellations made within 30 days of the session date are non-refundable, and no credit for the retainer will be issued.</li>
+                  <li>The Client may reschedule the session one time at no charge with at least 72 hours' notice, subject to the Photographer's availability.</li>
+                  <li>
+                    If the Photographer must cancel due to illness, emergency, or other unforeseen circumstances, the
+                    Photographer will make reasonable efforts to secure a qualified replacement or reschedule; if
+                    neither is possible, all payments made by the Client, including the retainer, will be refunded in
+                    full.
+                  </li>
+                  <li>
+                    No-Shows: If the Client (or the subject(s) to be photographed) fails to arrive at the agreed
+                    location within 45 minutes of the agreed shoot start time, and the Photographer is unable to reach
+                    the Client to confirm a delay, the session will be treated as a "No-Show." In the event of a
+                    No-Show: (a) the retainer is forfeited in full and is non-refundable; (b) the remaining 80% balance
+                    of the Total Session Fee becomes due as a No-Show fee, payable within 7 days of the original date
+                    of the shoot, as the Photographer's reserved time cannot be recovered or rebooked on short notice;
+                    and (c) any rescheduled session will be treated as a new booking, subject to the Photographer's
+                    availability, a new retainer, and a $75 rebooking fee.
+                  </li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">08</span>Weather and Force Majeure</div>
+              <div class="doc-b">
+                <p>
+                  For outdoor sessions, the Parties agree to reschedule in the event of inclement weather or conditions
+                  that make the session unsafe or impractical, at no additional charge, subject to availability.
+                  Neither Party shall be liable for delay or failure to perform due to causes beyond their reasonable
+                  control, including natural disasters, illness, accidents, or other events of force majeure.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">09</span>Liability</div>
+              <div class="doc-b">
+                <p>
+                  The Photographer's liability for any claim arising from this Agreement, including lost, damaged, or
+                  undelivered Images due to equipment failure, theft, corruption of digital media, or other
+                  circumstances beyond the Photographer's reasonable control, shall not exceed the total amount paid by
+                  the Client under this Agreement. In no event shall the Photographer be liable for indirect,
+                  incidental, or consequential damages. This limitation of liability shall not apply to damages arising
+                  from the Photographer's gross negligence or willful misconduct.
+                </p>
+                <p>The Client agrees to indemnify and hold the Photographer harmless from any claims, damages, or liabilities arising from the Client's use of the delivered Images in violation of this Agreement or applicable law.</p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">10</span>Property and Conduct at Session Location</div>
+              <div class="doc-b">
+                <p>
+                  The Client is responsible for obtaining any necessary permits or permissions for use of a session
+                  location. The Photographer is not responsible for damage to property at the session location unless
+                  caused by the Photographer's negligence. The Client agrees to ensure a safe environment for the
+                  Photographer and any assistants.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">11</span>Independent Contractor</div>
+              <div class="doc-b">
+                <p>
+                  The Photographer is engaged as an independent contractor and not as an employee, partner, or agent of
+                  the Client. Nothing in this Agreement shall be construed to create an employment, partnership, or
+                  joint venture relationship between the Parties.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">12</span>Termination</div>
+              <div class="doc-b">
+                <p>Either Party may terminate this Agreement for material breach if the breaching Party fails to cure such breach within 7 days of written notice.</p>
+                <p>
+                  If the Client is the breaching Party, or if this Agreement is terminated for any reason other than
+                  the Photographer's uncured breach, the Client shall pay the Photographer for all Services performed
+                  and expenses incurred up to the date of termination, and no amounts already paid shall be refunded
+                  except as otherwise expressly provided in this Agreement.
+                </p>
+                <p>
+                  If the Photographer is the breaching Party and fails to cure such breach within the period stated
+                  above, the Client shall be entitled to a refund of amounts paid for any Services not rendered or
+                  deliverables not provided as of the date of termination. This Agreement does not entitle the Client
+                  to a refund of fees corresponding to Services already performed.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">13</span>Confidentiality</div>
+              <div class="doc-b">
+                <p>
+                  Each Party agrees to keep confidential any proprietary or sensitive information disclosed by the
+                  other Party in connection with this Agreement, except as required by law or as necessary to perform
+                  the Services.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">14</span>Dispute Resolution and Governing Law</div>
+              <div class="doc-b">
+                <p>This Agreement shall be governed by and construed in accordance with the laws of Washington, D.C., without regard to conflict of law principles.</p>
+                <p>
+                  The Parties agree to first attempt to resolve any dispute arising out of or relating to this
+                  Agreement informally through good-faith discussion. If the dispute is not resolved within 30 days,
+                  the Parties agree to submit the dispute to mediation before a mutually agreed mediator. If mediation
+                  does not resolve the dispute, either Party may bring the matter before a court of competent
+                  jurisdiction located in Washington, D.C., which shall have exclusive jurisdiction over the dispute.
+                </p>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">15</span>General Provisions</div>
+              <div class="doc-b">
+                <ul>
+                  <li>Entire Agreement: This Agreement constitutes the entire understanding between the Parties and supersedes all prior discussions or agreements, written or oral.</li>
+                  <li>Amendments: Any modification to this Agreement must be made in writing and signed by both Parties.</li>
+                  <li>Severability: If any provision of this Agreement is held invalid or unenforceable, the remaining provisions shall continue in full force and effect.</li>
+                  <li>Assignment: Neither Party may assign this Agreement without the prior written consent of the other Party.</li>
+                  <li>Notices: All notices under this Agreement shall be delivered in writing to the Client's address listed above or to the Photographer's email address (owenmcc.photo@gmail.com), and shall be deemed received upon confirmed delivery.</li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="doc-row reveal">
+              <div class="doc-k"><span class="doc-k-idx">16</span>Minor Model Release (if applicable)</div>
+              <div class="doc-b">
+                <p>
+                  If any individual(s) to be photographed during the session are under the age of 18, the Client must
+                  be the parent or legal guardian of each such minor in order to book this session. By signing this
+                  Agreement, the Client represents that the Client is the parent or legal guardian of each minor
+                  listed below and has full legal authority to consent to this Agreement, including the Model Release
+                  in Section 6, on the minor's behalf.
+                </p>
+                <p>
+                  <strong>Minor's Name(s)</strong> (optional — leave blank if not applicable):<br />
+                  <input class="doc-fill-input size-l" type="text" name="minorNames" maxlength="300" placeholder="e.g. Sam Smith, Alex Smith" />
+                </p>
+                <p>
+                  <strong>Client's Relationship to Minor(s)</strong> (optional):<br />
+                  <input class="doc-fill-input size-l" type="text" name="minorRelationship" maxlength="200" placeholder="e.g. Parent" />
+                </p>
+              </div>
+            </section>
           </div>
 
-          <div class="inq-field">
-            <label for="sign-consent">
-              <input id="sign-consent" name="consent" type="checkbox" required style="margin-right: 8px;" />
+          <article class="doc-b reveal" style="max-width: 720px; margin: 48px 0;">
+            <h3>Signatures</h3>
+            <p>By signing below, the Parties acknowledge that they have read, understood, and agree to be bound by the terms of this Agreement.</p>
+
+            <p style="margin-top: 28px;">
+              <strong>PHOTOGRAPHER</strong><br />
+              Signature: _____________________________________<br />
+              Print Name: Owen McCullum<br />
+              Date: _________________________________________
+            </p>
+
+            <p style="margin-top: 28px;">
+              <strong>CLIENT</strong><br />
+              Signature (type your full legal name):<br />
+              <input class="doc-fill-input size-l" type="text" name="signatureName" id="sign-name" required placeholder="Type your full legal name" style="font-family: var(--display); font-style: italic; font-size: 18px;" /><br />
+              Print Name: <span class="doc-fill" id="sign-name-mirror">—</span><br />
+              Date: <span class="doc-fill">{today}</span>
+            </p>
+          </article>
+
+          <div class="inq-field" style="max-width: 720px;">
+            <label>
+              <input type="checkbox" name="consent" required style="margin-right: 8px;" />
               I have reviewed the agreement above and agree that typing my name here constitutes my legal signature.
             </label>
           </div>
 
-          {error === "invalid" && (
-            <p class="inq-feedback inq-error" role="alert">Please type your name and check the box above.</p>
-          )}
-          {error === "sign_failed" && (
-            <p class="inq-feedback inq-error" role="alert">Something went wrong signing this contract. Please try again.</p>
-          )}
-
-          <button class="inq-submit" type="submit">Sign contract</button>
+          <button class="inq-submit" type="submit" style="margin-top: 24px;">Sign contract</button>
         </form>
+
+        <script>
+          const nameInput = document.getElementById("sign-name") as HTMLInputElement | null;
+          const mirror = document.getElementById("sign-name-mirror");
+          nameInput?.addEventListener("input", () => {
+            if (mirror) mirror.textContent = nameInput.value.trim() || "—";
+          });
+        </script>
       </>
     )}
   </main>

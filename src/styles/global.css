@@ -1025,6 +1025,71 @@ html.js .hero-strip {
   color: var(--mute);
 }
 
+/* Contract signing page: the full agreement text (via .doc-b above) with
+   every blank from the paper form highlighted so it's obvious what's been
+   filled in and what the client can still fill in themselves. */
+.doc-fill {
+  display: inline-block;
+  background: #fbe58a;
+  color: var(--ink);
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.doc-fill-empty {
+  color: var(--mute);
+  font-weight: 400;
+  font-style: italic;
+}
+.doc-fill-input {
+  display: inline-block;
+  vertical-align: baseline;
+  background: #fbe58a;
+  color: var(--ink);
+  border: none;
+  border-bottom: 1.5px solid var(--ink);
+  border-radius: 3px 3px 0 0;
+  padding: 2px 7px;
+  font: inherit;
+  font-size: 15px;
+}
+.doc-fill-input::placeholder {
+  color: rgba(22, 20, 15, 0.45);
+  font-style: italic;
+}
+.doc-fill-input.size-s {
+  width: 90px;
+}
+.doc-fill-input.size-m {
+  width: 220px;
+  max-width: 100%;
+}
+.doc-fill-input.size-l {
+  width: 100%;
+  max-width: 480px;
+}
+textarea.doc-fill-input {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.doc-fill-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fbe58a;
+  border-radius: 3px;
+  padding: 3px 8px 3px 6px;
+}
+.doc-fill-check input {
+  accent-color: var(--ink);
+  width: 15px;
+  height: 15px;
+}
+
 /* Price list */
 .pricelist {
   display: grid;

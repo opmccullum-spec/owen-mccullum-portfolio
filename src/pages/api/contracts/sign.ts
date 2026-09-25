@@ -2,7 +2,7 @@ export const prerender = false;
 
 import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
-import { generateSignedPdf, type ContractPrefillFields } from "../../../lib/contractPdf";
+import { generateSignedPdf, type ContractPrefillFields, type ClientFilledFields } from "../../../lib/contractPdf";
 import { sendEmail } from "../../../lib/resend";
 import { contractSignedOwnerEmail } from "../../../lib/emailTemplates";
 
@@ -37,9 +37,21 @@ export const POST: APIRoute = async ({ request, redirect }) => {
     const signerUserAgent = request.headers.get("user-agent") || "unknown";
     const prefillFields = contract.prefill_fields as ContractPrefillFields;
 
+    // Conditional fields the client fills in themselves, right here on the
+    // signing page, rather than the admin form — see ClientFilledFields.
+    const clientFields: ClientFilledFields = {
+      additionalDetails: String(form.get("additionalDetails") ?? "").trim().slice(0, 500) || undefined,
+      deliveryTimeline: String(form.get("deliveryTimeline") ?? "").trim().slice(0, 200) || undefined,
+      deliveryFee: String(form.get("deliveryFee") ?? "").trim().slice(0, 50) || undefined,
+      optOutPromo: form.get("optOutPromo") === "on",
+      minorNames: String(form.get("minorNames") ?? "").trim().slice(0, 300) || undefined,
+      minorRelationship: String(form.get("minorRelationship") ?? "").trim().slice(0, 200) || undefined,
+    };
+
     const pdfBytes = await generateSignedPdf({
       title: contract.title,
       prefillFields,
+      clientFields,
       signatureName,
       signedAtISO,
       signerIp,
