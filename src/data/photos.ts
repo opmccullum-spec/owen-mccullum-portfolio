@@ -9,7 +9,7 @@ import type { ImageMetadata } from "astro";
 
 export type PhotoSpan = 4 | 6 | 12;
 export type PhotoShape = "land" | "port" | "feature" | "square";
-export type SeriesId = "portraits";
+export type SeriesId = "portraits" | "washington-dc";
 
 export interface Photo {
   /** Filename inside src/assets/photos */
@@ -33,7 +33,10 @@ export interface Series {
 }
 
 /** The bodies of work, in display order. */
-export const series: Series[] = [{ id: "portraits", index: "01", title: "Portraits" }];
+export const series: Series[] = [
+  { id: "portraits", index: "01", title: "Portraits" },
+  { id: "washington-dc", index: "02", title: "Washington, D.C." },
+];
 
 // Order within each section is the on-page order — matches Owen's own
 // filmstrip sequence (left to right). Locations are kept general where the
