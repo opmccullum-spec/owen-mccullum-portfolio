@@ -6,7 +6,7 @@ import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { findOrCreateClient } from "../../../lib/supabase/findOrCreateClient";
 import { isCalendarBusy } from "../../../lib/googleCalendar";
 import { sendEmail } from "../../../lib/resend";
-import { bookingRequestOwnerEmail } from "../../../lib/emailTemplates";
+import { bookingRequestOwnerEmail, bookingRequestReceivedEmail } from "../../../lib/emailTemplates";
 import { calculatePrice, isBookingCategory, CATEGORY_LABELS } from "../../../lib/pricing";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -144,6 +144,26 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html });
     } catch (err) {
       console.error("failed to email owner about new booking request:", err instanceof Error ? err.message : err);
+    }
+
+    try {
+      const { subject, html } = bookingRequestReceivedEmail({
+        clientName: name,
+        startISO,
+        endISO,
+        timezone: settings.timezone,
+        estimate: estimate
+          ? {
+              categoryLabel: CATEGORY_LABELS[estimate.category],
+              hours: estimate.hours,
+              totalCents: estimate.totalCents,
+              isHoliday: estimate.isHoliday,
+            }
+          : null,
+      });
+      await sendEmail({ to: email, subject, html });
+    } catch (err) {
+      console.error("failed to email client their booking request confirmation:", err instanceof Error ? err.message : err);
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });

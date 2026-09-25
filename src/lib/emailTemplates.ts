@@ -57,6 +57,30 @@ export function bookingRequestOwnerEmail(params: {
   };
 }
 
+export function bookingRequestReceivedEmail(params: {
+  clientName: string;
+  startISO: string;
+  endISO: string;
+  timezone: string;
+  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean } | null;
+}) {
+  const when = formatSessionTime(params.startISO, params.endISO, params.timezone);
+  const estimateLine = params.estimate
+    ? `<p>${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}</p>`
+    : "";
+  return {
+    subject: "We've got your booking request",
+    html: wrapEmail(`
+      <p>Hi ${params.clientName},</p>
+      <p>Thanks for reaching out! Here's what you requested:</p>
+      <p><strong>${when}</strong></p>
+      ${estimateLine}
+      <p><strong>What's next?</strong><br>Owen will get back to you within a day or two to confirm your booking!</p>
+      <p>Looking forward to it!</p>
+    `),
+  };
+}
+
 export function bookingConfirmedEmail(params: {
   clientName: string;
   startISO: string;
