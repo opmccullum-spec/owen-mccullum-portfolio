@@ -76,7 +76,6 @@ export function bookingRequestReceivedEmail(params: {
       <p><strong>${when}</strong></p>
       ${estimateLine}
       <p><strong>What's next?</strong><br>Owen will get back to you within a day or two to confirm your booking!</p>
-      <p>Looking forward to it!</p>
     `),
   };
 }
