@@ -9,6 +9,27 @@ import { contractRequestEmail } from "../../../../lib/emailTemplates";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+/** "2026-10-12" -> "October 12, 2026" (formatted in UTC so the server's own timezone can't shift the date). */
+function formatSessionDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** "16:00" -> "4:00 PM" */
+function formatTime12h(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const auth = await requireAdminApi(request, cookies);
@@ -20,18 +41,35 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const clientName = String(form.get("clientName") ?? "").trim();
   const address = String(form.get("address") ?? "").trim();
   const phone = String(form.get("phone") ?? "").trim();
-  const sessionDate = String(form.get("sessionDate") ?? "").trim();
-  const startEndTime = String(form.get("startEndTime") ?? "").trim();
+  const sessionDateRaw = String(form.get("sessionDate") ?? "").trim();
+  const startTimeRaw = String(form.get("startTime") ?? "").trim();
+  const endTimeRaw = String(form.get("endTime") ?? "").trim();
   const location = String(form.get("location") ?? "").trim();
   const totalFee = parseFloat(String(form.get("totalFee") ?? ""));
   const bookingId = String(form.get("bookingId") ?? "").trim() || null;
 
-  if (!EMAIL_RE.test(email) || !title || !clientName || !sessionDate || !(totalFee > 0)) {
+  if (
+    !EMAIL_RE.test(email) ||
+    !title ||
+    !clientName ||
+    !DATE_RE.test(sessionDateRaw) ||
+    (startTimeRaw && !TIME_RE.test(startTimeRaw)) ||
+    (endTimeRaw && !TIME_RE.test(endTimeRaw)) ||
+    !(totalFee > 0)
+  ) {
     return redirect("/admin/contracts/new?error=create_failed");
   }
   if (bookingId && !UUID_RE.test(bookingId)) {
     return redirect("/admin/contracts/new?error=create_failed");
   }
+
+  const sessionDate = formatSessionDate(sessionDateRaw);
+  const startEndTime =
+    startTimeRaw && endTimeRaw
+      ? `${formatTime12h(startTimeRaw)} – ${formatTime12h(endTimeRaw)}`
+      : startTimeRaw
+        ? formatTime12h(startTimeRaw)
+        : "";
 
   const retainer = (totalFee * 0.2).toFixed(2);
   const balance = (totalFee * 0.8).toFixed(2);
