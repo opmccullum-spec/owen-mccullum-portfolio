@@ -94,13 +94,18 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
       </div>
 
       <div class="inq-field">
-        <label for="ct-session-date">Date(s) of session</label>
-        <input id="ct-session-date" name="sessionDate" type="text" placeholder="e.g. October 12, 2026" required />
+        <label for="ct-session-date">Date of session</label>
+        <input id="ct-session-date" name="sessionDate" type="date" required />
       </div>
 
       <div class="inq-field">
-        <label for="ct-time">Start / end time</label>
-        <input id="ct-time" name="startEndTime" type="text" placeholder="e.g. 4:00pm – 6:00pm" />
+        <label for="ct-start-time">Start time (optional)</label>
+        <input id="ct-start-time" name="startTime" type="time" />
+      </div>
+
+      <div class="inq-field">
+        <label for="ct-end-time">End time (optional)</label>
+        <input id="ct-end-time" name="endTime" type="time" />
       </div>
 
       <div class="inq-field">
