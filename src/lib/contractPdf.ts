@@ -35,6 +35,19 @@ export const CONTRACT_FIELD_BOXES: Record<string, FieldBox> = {
 const SIGNATURE_BOX: FieldBox = { page: 5, xPct: 18.35054189786062, yPct: 56.54031269698767, widthPct: 31.86079040852567, heightPct: 2.751243408548064, fontSize: 18 };
 const SIGNED_DATE_BOX: FieldBox = { page: 5, xPct: 14.81420251811557, yPct: 61.06613908883533, widthPct: 41.241464992442, heightPct: 2.871408534013202, fontSize: 12 };
 
+// These three (section 3's rush-delivery override, section 4's promotional
+// opt-out) are conditional/not needed on every contract, so — same as with
+// Documenso — they're left for the client to fill in themselves on the
+// signing page rather than the admin form. See ClientFilledFields below.
+const DELIVERY_TIMELINE_BOX: FieldBox = { page: 2, xPct: 58.25932504440473, yPct: 14.93553289766781, widthPct: 15.98579040852571, heightPct: 2.751243177580534, fontSize: 12 };
+const DELIVERY_FEE_BOX: FieldBox = { page: 2, xPct: 34.45888806802945, yPct: 17.13045228215937, widthPct: 10.32207359436688, heightPct: 2.751243177580482, fontSize: 12 };
+const PROMO_OPT_OUT_BOX: FieldBox = { page: 2, xPct: 6.950126927490185, yPct: 56.89418085712542, widthPct: 15.11632138197712, heightPct: 4.118580460590175, fontSize: 12 };
+// Section 1's "additional details" blank spans two printed lines (roughly
+// double the height of every other single-line box above).
+const ADDITIONAL_DETAILS_BOX: FieldBox = { page: 1, xPct: 35.523349942627, yPct: 47.7727759103808, widthPct: 50.60595262276074, heightPct: 5.744748137994164, fontSize: 11 };
+const MINOR_NAMES_BOX: FieldBox = { page: 5, xPct: 23.51310143196209, yPct: 30.89715920253516, widthPct: 66.36079031834007, heightPct: 2.751243408548053, fontSize: 12 };
+const MINOR_RELATIONSHIP_BOX: FieldBox = { page: 5, xPct: 33.74777975133212, yPct: 33.39923576588641, widthPct: 57.48593077424704, heightPct: 2.75124340854813, fontSize: 12 };
+
 /** Converts a Documenso-style top-left percentage box into a pdf-lib baseline (x, y) in points. */
 function boxToBaseline(page: PDFPage, box: FieldBox): { x: number; y: number } {
   const pageWidth = page.getWidth();
@@ -54,6 +67,25 @@ function drawInBox(page: PDFPage, box: FieldBox, text: string, font: PDFFont) {
   page.drawText(text, { x, y, size: box.fontSize, font });
 }
 
+/**
+ * Same as drawInBox, but for a blank that spans two printed lines: wraps the
+ * text and centers each wrapped line within its own half of the box, the
+ * same way drawInBox centers a single line — rather than a fixed line-height
+ * guess, which risked the second line landing right on the printed
+ * underline instead of above it.
+ */
+function drawWrappedInBox(page: PDFPage, box: FieldBox, text: string, font: PDFFont) {
+  if (!text) return;
+  const pageWidth = page.getWidth();
+  const boxWidthPts = (box.widthPct / 100) * pageWidth;
+  const lines = wrapText(text, font, box.fontSize, boxWidthPts).slice(0, 2);
+  const halfHeightPct = box.heightPct / 2;
+  lines.forEach((line, i) => {
+    const subBox: FieldBox = { ...box, yPct: box.yPct + halfHeightPct * i, heightPct: halfHeightPct };
+    drawInBox(page, subBox, line, font);
+  });
+}
+
 export type ContractPrefillFields = {
   clientName: string;
   address?: string;
@@ -67,9 +99,20 @@ export type ContractPrefillFields = {
   balance: string;
 };
 
+/** Fields the client (not the admin) fills in on the signing page itself — conditional details that don't apply to every contract. */
+export type ClientFilledFields = {
+  additionalDetails?: string;
+  deliveryTimeline?: string;
+  deliveryFee?: string;
+  optOutPromo?: boolean;
+  minorNames?: string;
+  minorRelationship?: string;
+};
+
 export async function generateSignedPdf(params: {
   title: string;
   prefillFields: ContractPrefillFields;
+  clientFields?: ClientFilledFields;
   signatureName: string;
   signedAtISO: string;
   signerIp: string;
@@ -101,6 +144,32 @@ export async function generateSignedPdf(params: {
     const page = pages[box.page - 1];
     if (!page) continue;
     drawInBox(page, box, value, font);
+  }
+
+  const c = params.clientFields ?? {};
+  if (c.additionalDetails) {
+    const page = pages[ADDITIONAL_DETAILS_BOX.page - 1];
+    if (page) drawWrappedInBox(page, ADDITIONAL_DETAILS_BOX, c.additionalDetails, font);
+  }
+  if (c.deliveryTimeline) {
+    const page = pages[DELIVERY_TIMELINE_BOX.page - 1];
+    if (page) drawInBox(page, DELIVERY_TIMELINE_BOX, c.deliveryTimeline, font);
+  }
+  if (c.deliveryFee) {
+    const page = pages[DELIVERY_FEE_BOX.page - 1];
+    if (page) drawInBox(page, DELIVERY_FEE_BOX, c.deliveryFee, font);
+  }
+  if (c.optOutPromo) {
+    const page = pages[PROMO_OPT_OUT_BOX.page - 1];
+    if (page) drawInBox(page, PROMO_OPT_OUT_BOX, "X", font);
+  }
+  if (c.minorNames) {
+    const page = pages[MINOR_NAMES_BOX.page - 1];
+    if (page) drawInBox(page, MINOR_NAMES_BOX, c.minorNames, font);
+  }
+  if (c.minorRelationship) {
+    const page = pages[MINOR_RELATIONSHIP_BOX.page - 1];
+    if (page) drawInBox(page, MINOR_RELATIONSHIP_BOX, c.minorRelationship, font);
   }
 
   const signaturePage = pages[SIGNATURE_BOX.page - 1];

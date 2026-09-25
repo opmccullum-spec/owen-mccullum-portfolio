@@ -1,0 +1,19 @@
+---
+// A highlighted "blank" in the contract signing page — either shows the
+// value the admin already filled in, or (for optional fields left blank)
+// a muted placeholder, still highlighted so it reads as a blank in the
+// document rather than being mistaken for missing text.
+interface Props {
+  value?: string | null;
+  placeholder?: string;
+}
+const { value, placeholder = "(not specified)" } = Astro.props;
+---
+
+{
+  value ? (
+    <span class="doc-fill">{value}</span>
+  ) : (
+    <span class="doc-fill doc-fill-empty">{placeholder}</span>
+  )
+}
