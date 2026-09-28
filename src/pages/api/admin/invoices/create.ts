@@ -11,7 +11,16 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 async function findOrCreateStripeCustomer(userId: string, email: string) {
   const { data: profile } = await supabaseAdmin.from("profiles").select("stripe_customer_id").eq("id", userId).single();
-  if (profile?.stripe_customer_id) return profile.stripe_customer_id;
+  if (profile?.stripe_customer_id) {
+    try {
+      const existing = await stripe.customers.retrieve(profile.stripe_customer_id);
+      if (!existing.deleted) return profile.stripe_customer_id;
+    } catch {
+      // Cached ID belongs to a different Stripe account/mode than the one
+      // we're on now (e.g. after switching test -> live keys) — fall
+      // through and mint a fresh customer instead of failing the invoice.
+    }
+  }
 
   const customer = await stripe.customers.create({ email });
   await supabaseAdmin.from("profiles").update({ stripe_customer_id: customer.id }).eq("id", userId);
