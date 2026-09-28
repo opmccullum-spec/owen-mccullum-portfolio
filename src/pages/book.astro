@@ -37,6 +37,8 @@ import Footer from "../components/Footer.astro";
         <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
       </div>
 
+      <p class="inq-eyebrow calc-label">Estimated cost:</p>
+      <p class="book-price" id="calc-price">—</p>
     </section>
 
     <div id="book-app" class="reveal">
@@ -328,6 +330,8 @@ import Footer from "../components/Footer.astro";
     const minusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-minus")!;
     const plusBtn = document.querySelector<HTMLButtonElement>("#calc-hours-plus")!;
 
+    const calcPriceEl = document.querySelector<HTMLElement>("#calc-price")!;
+
     const pickerEl = document.querySelector<HTMLElement>("#slot-picker")!;
     const timeSelect = document.querySelector<HTMLSelectElement>("#time-slot")!;
     const timeNoteEl = document.querySelector<HTMLElement>("#time-slot-note")!;
@@ -350,10 +354,34 @@ import Footer from "../components/Footer.astro";
     let requestToken = 0; // ignore a stale response if hours changes again mid-flight
 
     dateInput.min = localDateKey(new Date());
+    updateCalcPrice();
 
     function showError(message: string) {
       errorEl.textContent = message;
       errorEl.hidden = false;
+    }
+
+    // Visible from page load (even before a time is picked) so a visitor
+    // immediately sees where the cost will appear — blank until a date is
+    // chosen, since that's the one input above with no default (category
+    // and hours both start pre-selected) and the one that can change the
+    // total via the holiday surcharge.
+    function updateCalcPrice() {
+      if (!dateInput.value) {
+        calcPriceEl.textContent = "—";
+        return;
+      }
+      const price = calculatePrice(calcCategory, calcHours, dateInput.value);
+      calcPriceEl.textContent = "";
+      calcPriceEl.append(money(price.totalCents));
+      if (price.isHoliday) {
+        calcPriceEl.append(
+          Object.assign(document.createElement("span"), {
+            className: "holiday-note",
+            textContent: "Includes a 20% holiday rate",
+          }),
+        );
+      }
     }
 
     function proceedWithTime(startISO: string, dateForLabel: Date) {
@@ -476,6 +504,7 @@ import Footer from "../components/Footer.astro";
         calcCategory = btn.dataset.category as BookingCategory;
         catButtons.forEach((b) => b.classList.toggle("active", b === btn));
         refreshIfTimeSelected();
+        updateCalcPrice();
       });
     });
     minusBtn.addEventListener("click", () => {
@@ -484,6 +513,7 @@ import Footer from "../components/Footer.astro";
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
       loadSlotsForHours();
+      updateCalcPrice();
     });
     plusBtn.addEventListener("click", () => {
       calcHours = Math.min(MAX_HOURS, calcHours + 1);
@@ -491,9 +521,13 @@ import Footer from "../components/Footer.astro";
       minusBtn.disabled = calcHours <= MIN_HOURS;
       plusBtn.disabled = calcHours >= MAX_HOURS;
       loadSlotsForHours();
+      updateCalcPrice();
     });
 
-    dateInput.addEventListener("change", renderSlotsForDate);
+    dateInput.addEventListener("change", () => {
+      renderSlotsForDate();
+      updateCalcPrice();
+    });
 
     timeSelect.addEventListener("change", () => {
       if (!timeSelect.value) return;
