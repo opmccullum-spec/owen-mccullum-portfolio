@@ -262,6 +262,10 @@ alter table public.contracts add column if not exists prefill_fields jsonb;
 alter table public.contracts add column if not exists signed_at timestamptz;
 alter table public.contracts add column if not exists signer_ip text;
 alter table public.contracts add column if not exists signer_user_agent text;
+-- SHA-256 of the exact final signed PDF, taken the moment it's generated —
+-- lets the authenticity of any copy of that PDF be verified later (rehash
+-- the file, compare to this) even if the file itself is later moved/copied.
+alter table public.contracts add column if not exists signed_pdf_sha256 text;
 
 create unique index if not exists contracts_sign_token_idx on public.contracts (sign_token) where sign_token is not null;
 

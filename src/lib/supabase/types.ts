@@ -43,6 +43,7 @@ export type Contract = {
   signed_at: string | null;
   signer_ip: string | null;
   signer_user_agent: string | null;
+  signed_pdf_sha256: string | null;
   created_at: string;
 };
 

@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from "astro";
+import { createHash } from "node:crypto";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { generateSignedPdf, type ContractPrefillFields, type ClientFilledFields } from "../../../lib/contractPdf";
 import { sendEmail } from "../../../lib/resend";
@@ -58,6 +59,8 @@ export const POST: APIRoute = async ({ request, redirect }) => {
       signerUserAgent,
     });
 
+    const signedPdfSha256 = createHash("sha256").update(pdfBytes).digest("hex");
+
     const { error: uploadErr } = await supabaseAdmin.storage
       .from("signed-contracts")
       .upload(`${contract.id}.pdf`, pdfBytes, { contentType: "application/pdf", upsert: true });
@@ -73,6 +76,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
         signer_ip: signerIp,
         signer_user_agent: signerUserAgent,
         signed_pdf_url: pub.publicUrl,
+        signed_pdf_sha256: signedPdfSha256,
       })
       .eq("id", contract.id)
       .eq("status", "sent")

@@ -21,7 +21,7 @@ const backHere = `/admin/clients/${clientId}`;
 const { data: shoots } = await supabaseAdmin
   .from("bookings")
   .select(
-    "id, starts_at, ends_at, status, contracts(id, title, status, signing_url, signed_pdf_url), invoices(id, description, status, amount_cents, hosted_invoice_url)",
+    "id, starts_at, ends_at, status, contracts(id, title, status, signing_url, signed_pdf_url, signed_pdf_sha256), invoices(id, description, status, amount_cents, hosted_invoice_url)",
   )
   .eq("client_id", clientId)
   .order("starts_at", { ascending: true });
@@ -30,7 +30,7 @@ const { data: shoots } = await supabaseAdmin
 // (e.g. a one-off charge) still belong to them — shown separately below.
 const { data: unscheduledContracts } = await supabaseAdmin
   .from("contracts")
-  .select("id, title, status, signing_url, signed_pdf_url, created_at")
+  .select("id, title, status, signing_url, signed_pdf_url, signed_pdf_sha256, created_at")
   .eq("client_id", clientId)
   .is("booking_id", null)
   .order("created_at", { ascending: false });
@@ -132,6 +132,11 @@ const cancelErrorMessage =
                         <div class="at-item">
                           <span>{c.title}</span>
                           <span class={`at-sub${d.overdue ? " at-overdue" : ""}`}>{d.label}</span>
+                          {c.signed_pdf_sha256 && (
+                            <span class="sig-hash" title="SHA-256 of the exact signed PDF — proves it hasn't been altered">
+                              SHA-256: {c.signed_pdf_sha256}
+                            </span>
+                          )}
                           <span class="at-actions">
                             {href && (
                               <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
@@ -213,6 +218,11 @@ const cancelErrorMessage =
               <div class="contact-block">
                 <p class="ck">Contract · {d.label}</p>
                 <p class="big">{c.title}</p>
+                {c.signed_pdf_sha256 && (
+                  <p class="sig-hash" title="SHA-256 of the exact signed PDF — proves it hasn't been altered">
+                    SHA-256: {c.signed_pdf_sha256}
+                  </p>
+                )}
                 <p class="at-actions">
                   {href && (
                     <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
@@ -275,3 +285,18 @@ const cancelErrorMessage =
   </main>
   <Footer />
 </BaseLayout>
+
+<style>
+  /* A 64-char hex hash is one unbroken token — without this it overflows
+     both the admin table's narrow column and the contact-block card
+     instead of wrapping. */
+  .sig-hash {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--mute);
+    margin-top: 5px;
+    overflow-wrap: anywhere;
+  }
+</style>
