@@ -14,7 +14,7 @@ if (auth instanceof Response) return auth;
 // table can show its signed / due / overdue status on that shoot's row.
 const { data: shootOptions } = await supabaseAdmin
   .from("bookings")
-  .select("id, starts_at, status, profiles(email, full_name)")
+  .select("id, starts_at, ends_at, status, profiles(email, full_name)")
   .order("starts_at", { ascending: false });
 
 function shootLabel(b: any) {
@@ -65,6 +65,8 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
                 value={b.id}
                 data-email={b.profiles?.email ?? ""}
                 data-name={b.profiles?.full_name ?? ""}
+                data-starts-at={b.starts_at}
+                data-ends-at={b.ends_at}
               >
                 {shootLabel(b)}
               </option>
@@ -132,15 +134,39 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
 </BaseLayout>
 
 <script>
+  // Local (Owen's own browser) wall-clock date/time strings, matching what
+  // native <input type="date">/<input type="time"> controls expect — same
+  // approach as /book's localDateKey, so a shoot's real starts_at/ends_at
+  // (stored in UTC) lands on the input as the time Owen actually meant.
+  function toDateInputValue(iso: string): string {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+  function toTimeInputValue(iso: string): string {
+    const d = new Date(iso);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
   function initShootLink() {
     const shoot = document.querySelector<HTMLSelectElement>("#ct-shoot");
     const email = document.querySelector<HTMLInputElement>("#ct-email");
     const name = document.querySelector<HTMLInputElement>("#ct-name");
+    const sessionDate = document.querySelector<HTMLInputElement>("#ct-session-date");
+    const startTime = document.querySelector<HTMLInputElement>("#ct-start-time");
+    const endTime = document.querySelector<HTMLInputElement>("#ct-end-time");
     if (!shoot || !email || shoot.dataset.init) return;
     shoot.dataset.init = "1";
 
-    // Picking a shoot pins the client — fill in and lock their email, and
-    // prefill the name if we have one on file (still editable).
+    // Picking a shoot pins the client — fill in and lock their email,
+    // prefill the name if we have one on file (still editable), and pull in
+    // the shoot's actual date/start/end time so they don't need to be
+    // retyped (previously only email/name were prefilled, so it was easy to
+    // assume the time carried over too and leave it blank by mistake).
     shoot.addEventListener("change", () => {
       const opt = shoot.selectedOptions[0];
       const em = opt?.dataset.email || "";
@@ -151,6 +177,14 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
       } else {
         email.readOnly = false;
       }
+
+      const startsAt = opt?.dataset.startsAt;
+      const endsAt = opt?.dataset.endsAt;
+      if (startsAt) {
+        if (sessionDate) sessionDate.value = toDateInputValue(startsAt);
+        if (startTime) startTime.value = toTimeInputValue(startsAt);
+      }
+      if (endsAt && endTime) endTime.value = toTimeInputValue(endsAt);
     });
   }
 
