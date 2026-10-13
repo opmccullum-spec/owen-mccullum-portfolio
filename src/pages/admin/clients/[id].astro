@@ -150,7 +150,7 @@ const cancelErrorMessage =
                           <span class="at-actions">
                             {href && (
                               <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
-                                View
+                                {c.status === "signed" ? "View signed document" : "View"}
                               </a>
                             )}
                             {d.needsCountersign && (
@@ -241,7 +241,7 @@ const cancelErrorMessage =
                 <p class="at-actions">
                   {href && (
                     <a class="portal-signout-btn" href={href} target="_blank" rel="noopener">
-                      View
+                      {c.status === "signed" ? "View signed document" : "View"}
                     </a>
                   )}
                   {d.needsCountersign && (

@@ -225,11 +225,18 @@ shootRows.sort(
                         {r.contractState === "overdue" &&
                           `Overdue by ${r.contractOverdueDays} day${r.contractOverdueDays === 1 ? "" : "s"}`}
                       </span>
-                      {r.contractState === "countersign" && r.contract && (
+                      {(r.contractState === "signed" || r.contractState === "countersign") && r.contract && (
                         <span class="at-actions">
-                          <a class="portal-signout-btn" href={countersignHref(r.contract.id)}>
-                            Countersign
-                          </a>
+                          {r.contractHref && (
+                            <a class="portal-signout-btn" href={r.contractHref} target="_blank" rel="noopener">
+                              View signed document
+                            </a>
+                          )}
+                          {r.contractState === "countersign" && (
+                            <a class="portal-signout-btn" href={countersignHref(r.contract.id)}>
+                              Countersign
+                            </a>
+                          )}
                         </span>
                       )}
                     </>
@@ -297,11 +304,23 @@ shootRows.sort(
             </p>
             <p class="big">{contract.title}</p>
             <p>{contract.profiles?.full_name || contract.profiles?.email}</p>
-            {contract.status === "signed" && !contract.countersigned_at && (
+            {contract.status === "signed" && (
               <p class="at-actions">
-                <a class="portal-signout-btn" href={countersignHref(contract.id)}>
-                  Countersign
-                </a>
+                {(contract.countersigned_pdf_url || contract.signed_pdf_url) && (
+                  <a
+                    class="portal-signout-btn"
+                    href={contract.countersigned_pdf_url || contract.signed_pdf_url}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    View signed document
+                  </a>
+                )}
+                {!contract.countersigned_at && (
+                  <a class="portal-signout-btn" href={countersignHref(contract.id)}>
+                    Countersign
+                  </a>
+                )}
               </p>
             )}
           </div>
