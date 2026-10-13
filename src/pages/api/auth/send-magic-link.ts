@@ -4,10 +4,11 @@ import type { APIRoute } from "astro";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { safeRedirectPath } from "../../../lib/auth";
+import { verifyTurnstile } from "../../../lib/turnstile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const POST: APIRoute = async ({ request, cookies, url }) => {
+export const POST: APIRoute = async ({ request, cookies, url, clientAddress }) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -18,6 +19,15 @@ export const POST: APIRoute = async ({ request, cookies, url }) => {
   const email = typeof body === "object" && body && "email" in body ? String((body as any).email).trim() : "";
   if (!EMAIL_RE.test(email)) {
     return new Response(JSON.stringify({ ok: false, error: "invalid_email" }), { status: 400 });
+  }
+
+  // Checked before an account is created or any email is sent — this
+  // endpoint self-registers and emails whatever address it's given, which
+  // is exactly what bots were exploiting.
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || clientAddress || null;
+  const turnstileToken = typeof body === "object" && body && "turnstileToken" in body ? (body as any).turnstileToken : null;
+  if (!(await verifyTurnstile(turnstileToken, ip))) {
+    return new Response(JSON.stringify({ ok: false, error: "captcha_failed" }), { status: 400 });
   }
 
   // Admin accounts log in with a password (see /admin/login), not this

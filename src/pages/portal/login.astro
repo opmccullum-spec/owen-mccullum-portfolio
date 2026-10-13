@@ -49,6 +49,8 @@ if (user && error !== "missing_profile") {
         <span class="inq-err" aria-live="polite"></span>
       </div>
 
+      <div class="ts-slot inq-initial"></div>
+
       <button class="inq-submit inq-initial" type="submit">Send login link</button>
 
       {errorMessage && (
@@ -81,15 +83,20 @@ if (user && error !== "missing_profile") {
 </BaseLayout>
 
 <script>
+  import { mountTurnstile } from "../../lib/turnstileClient";
+
   function initLogin() {
     const form = document.querySelector<HTMLFormElement>("#login-form");
     if (!form || form.dataset.init) return;
     form.dataset.init = "1";
 
+    const turnstile = mountTurnstile(form.querySelector<HTMLElement>(".ts-slot")!);
+
     const email = form.querySelector<HTMLInputElement>("[name=email]")!;
     const submit = form.querySelector<HTMLButtonElement>(".inq-submit")!;
     const sent = form.querySelector<HTMLElement>(".inq-sent")!;
     const errorBox = form.querySelector<HTMLElement>(".inq-error--submit")!;
+    const defaultErrorText = errorBox.textContent;
     const code = form.querySelector<HTMLInputElement>("[name=code]")!;
     const verifyBtn = form.querySelector<HTMLButtonElement>(".inq-verify")!;
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -124,17 +131,22 @@ if (user && error !== "missing_profile") {
       submit.textContent = "Sending…";
 
       try {
+        const turnstileToken = await turnstile.getToken();
         const res = await fetch("/api/auth/send-magic-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.value.trim(), next }),
+          body: JSON.stringify({ email: email.value.trim(), next, turnstileToken }),
         });
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
+          // Each Turnstile token works once, so a failed attempt needs a fresh one.
+          turnstile.reset();
           if (data.error === "admin_account") {
             showAdminAccountError();
           } else {
+            errorBox.textContent =
+              data.error === "captcha_failed" ? "Please complete the security check and try again." : defaultErrorText;
             errorBox.hidden = false;
           }
           submit.disabled = false;
@@ -147,6 +159,8 @@ if (user && error !== "missing_profile") {
           .forEach((el) => ((el as HTMLElement).hidden = true));
         sent.hidden = false;
       } catch {
+        turnstile.reset();
+        errorBox.textContent = defaultErrorText;
         errorBox.hidden = false;
         submit.disabled = false;
         submit.textContent = original;
