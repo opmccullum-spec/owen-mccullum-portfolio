@@ -42,6 +42,7 @@ const emailed = Astro.url.searchParams.get("emailed") !== "0";
 const invoiceUrl = Astro.url.searchParams.get("url");
 const contracted = Astro.url.searchParams.get("contracted");
 const countersigned = Astro.url.searchParams.get("countersigned");
+const countersignEmailFailed = Astro.url.searchParams.get("emailed") === "0";
 const approved = Astro.url.searchParams.get("approved");
 const declined = Astro.url.searchParams.get("declined");
 const cancelled = Astro.url.searchParams.get("cancelled");
@@ -127,7 +128,9 @@ shootRows.sort(
     )}
     {countersigned && (
       <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
-        Contract countersigned — it's now fully signed.
+        {countersignEmailFailed
+          ? "Contract countersigned — it's now fully signed, but the email to the client couldn't be sent. Use View signed document to share the link with them."
+          : "Contract countersigned — it's now fully signed, and a copy was emailed to the client."}
       </p>
     )}
     {approved && (

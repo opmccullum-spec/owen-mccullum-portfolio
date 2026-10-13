@@ -205,6 +205,23 @@ export function contractRequestEmail(params: { clientName: string; title: string
   };
 }
 
+export function contractFullySignedClientEmail(params: {
+  clientName: string;
+  title: string;
+  viewUrl: string;
+  portalUrl: string;
+}) {
+  return {
+    subject: `Your signed agreement — ${params.title}`,
+    html: wrapEmail(`
+      <p>Hi ${params.clientName},</p>
+      <p>Your agreement is now fully signed by both you and Owen. A copy is attached to this email for your records.</p>
+      <p><strong>${params.title}</strong></p>
+      <p>You can also view it anytime from your <a href="${params.portalUrl}">client portal</a>, or open the <a href="${params.viewUrl}">signed copy directly</a>.</p>
+    `),
+  };
+}
+
 export function contractSignedOwnerEmail(params: { clientName: string; title: string; countersignUrl: string }) {
   return {
     subject: `Contract signed — ${params.title}`,

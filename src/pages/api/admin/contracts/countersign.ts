@@ -5,6 +5,8 @@ import { createHash } from "node:crypto";
 import { requireAdminApi } from "../../../../lib/auth";
 import { supabaseAdmin } from "../../../../lib/supabase/admin";
 import { countersignPdf } from "../../../../lib/contractPdf";
+import { sendEmail } from "../../../../lib/resend";
+import { contractFullySignedClientEmail } from "../../../../lib/emailTemplates";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,7 +30,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const { data: contract } = await supabaseAdmin
     .from("contracts")
-    .select("id, title, status, signed_pdf_sha256, countersigned_at")
+    .select("id, title, status, signed_pdf_sha256, countersigned_at, prefill_fields, profiles(email, full_name)")
     .eq("id", contractId)
     .maybeSingle();
   if (!contract || contract.status !== "signed" || contract.countersigned_at) return redirect(back);
@@ -87,7 +89,32 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       .maybeSingle();
     if (updateErr) throw updateErr;
 
-    return redirect(updated ? "/admin?countersigned=1" : back);
+    if (!updated) return redirect(back);
+
+    // Send the client their fully signed copy. Best-effort, like every other
+    // email here: a failure is reported back to Owen rather than undoing a
+    // signature that's already been recorded.
+    let emailed = false;
+    try {
+      const fields = contract.prefill_fields as { clientName?: string; email?: string } | null;
+      const to = contract.profiles?.email || fields?.email;
+      if (to) {
+        const origin = new URL(request.url).origin;
+        const { subject, html } = contractFullySignedClientEmail({
+          clientName: fields?.clientName || contract.profiles?.full_name || "there",
+          title: contract.title,
+          viewUrl: pub.publicUrl,
+          portalUrl: `${origin}/portal`,
+        });
+        const filename = `${contract.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "signed-agreement"}-signed.pdf`;
+        await sendEmail({ to, subject, html, attachments: [{ filename, content: finalBytes }] });
+        emailed = true;
+      }
+    } catch (err) {
+      console.error("failed to email client their fully signed copy:", err instanceof Error ? err.message : err);
+    }
+
+    return redirect(`/admin?countersigned=1${emailed ? "" : "&emailed=0"}`);
   } catch (err) {
     console.error("countersign failed:", err instanceof Error ? err.message : err);
     return redirect(`${back}?error=failed`);

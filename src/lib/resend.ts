@@ -38,6 +38,7 @@ export function sendEmail(params: {
   html: string;
   /** Lets the recipient just hit "Reply" to reach this address directly. */
   replyTo?: string;
+  attachments?: Array<{ filename: string; content: Uint8Array }>;
 }): Promise<{ id: string }> {
   return resendFetch("/emails", {
     method: "POST",
@@ -47,6 +48,14 @@ export function sendEmail(params: {
       subject: params.subject,
       html: params.html,
       ...(params.replyTo ? { reply_to: params.replyTo } : {}),
+      ...(params.attachments?.length
+        ? {
+            attachments: params.attachments.map((a) => ({
+              filename: a.filename,
+              content: Buffer.from(a.content).toString("base64"),
+            })),
+          }
+        : {}),
     }),
   });
 }
