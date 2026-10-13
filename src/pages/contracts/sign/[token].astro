@@ -12,7 +12,7 @@ const { token } = Astro.params;
 
 const { data: contract } = await supabaseAdmin
   .from("contracts")
-  .select("id, title, status, signed_pdf_url, prefill_fields")
+  .select("id, title, status, signed_pdf_url, countersigned_pdf_url, prefill_fields")
   .eq("sign_token", token ?? "")
   .maybeSingle();
 
@@ -37,10 +37,12 @@ const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "
         <h1 class="page-title">Already signed.</h1>
         <p class="page-lede">
           Thanks — <strong>{contract.title}</strong> has already been signed.
-          {contract.signed_pdf_url && (
+          {(contract.countersigned_pdf_url || contract.signed_pdf_url) && (
             <>
               {" "}
-              <a href={contract.signed_pdf_url} target="_blank" rel="noopener">View the signed copy →</a>
+              <a href={contract.countersigned_pdf_url || contract.signed_pdf_url} target="_blank" rel="noopener">
+                View the signed copy →
+              </a>
             </>
           )}
         </p>

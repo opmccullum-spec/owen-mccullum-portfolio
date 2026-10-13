@@ -13,6 +13,10 @@ export interface ContractLite {
   status: ContractStatus;
   signing_url: string | null;
   signed_pdf_url: string | null;
+  signed_pdf_sha256?: string | null;
+  countersigned_at?: string | null;
+  countersigned_pdf_url?: string | null;
+  countersigned_pdf_sha256?: string | null;
 }
 
 export interface InvoiceLite {
@@ -56,13 +60,29 @@ export function daysSinceShoot(startsAt: string, now = Date.now()) {
  * legally executed document; once voided, there's nothing left to act on.
  */
 export function contractDisplay(c: ContractLite, isPast: boolean, days: number) {
-  if (c.status === "signed") return { label: "Signed", canCancel: false, overdue: false };
-  if (c.status === "voided") return { label: "Cancelled", canCancel: false, overdue: false };
+  if (c.status === "signed") {
+    // The client has signed; the agreement isn't fully executed until Owen
+    // countersigns too.
+    if (!c.countersigned_at) {
+      return { label: "Signed by client — needs your signature", canCancel: false, overdue: false, needsCountersign: true };
+    }
+    return { label: "Fully signed", canCancel: false, overdue: false, needsCountersign: false };
+  }
+  if (c.status === "voided") return { label: "Cancelled", canCancel: false, overdue: false, needsCountersign: false };
   // Only remaining status once sent is "sent" itself (draft never reaches the UI).
   if (isPast) {
-    return { label: `Overdue by ${days} day${days === 1 ? "" : "s"}`, canCancel: true, overdue: true };
+    return { label: `Overdue by ${days} day${days === 1 ? "" : "s"}`, canCancel: true, overdue: true, needsCountersign: false };
   }
-  return { label: "Awaiting signature", canCancel: true, overdue: false };
+  return { label: "Awaiting signature", canCancel: true, overdue: false, needsCountersign: false };
+}
+
+/** The most complete version of a contract to open: fully signed copy, else client-signed copy, else the signing link. */
+export function contractViewHref(c: ContractLite): string | null {
+  return c.countersigned_pdf_url || c.signed_pdf_url || c.signing_url || null;
+}
+
+export function countersignHref(contractId: string): string {
+  return `/admin/contracts/${contractId}/countersign`;
 }
 
 /**
@@ -86,7 +106,7 @@ export interface ShootRow {
   clientName: string;
   email: string;
   contract: ContractLite | null;
-  contractState: "none" | "signed" | "due" | "overdue";
+  contractState: "none" | "signed" | "countersign" | "due" | "overdue";
   contractOverdueDays: number;
   contractHref: string | null;
   owedCents: number;
@@ -108,14 +128,14 @@ export function buildShootRow(b: BookingLite, now = Date.now()): ShootRow {
   let contractState: ShootRow["contractState"] = "none";
   let contractOverdueDays = 0;
   if (contract) {
-    if (contract.status === "signed") contractState = "signed";
+    if (contract.status === "signed") contractState = contract.countersigned_at ? "signed" : "countersign";
     else if (contract.status === "voided") contractState = "none";
     else if (isPast) {
       contractState = "overdue";
       contractOverdueDays = days;
     } else contractState = "due";
   }
-  const contractHref: string | null = contract?.signed_pdf_url || contract?.signing_url || null;
+  const contractHref: string | null = contract ? contractViewHref(contract) : null;
 
   const invoicesForShoot = b.invoices ?? [];
   const owedCents = invoicesForShoot
@@ -130,11 +150,13 @@ export function buildShootRow(b: BookingLite, now = Date.now()): ShootRow {
   const contractSort =
     contractState === "overdue"
       ? -contractOverdueDays
-      : contractState === "due"
-        ? 1_000_000
-        : contractState === "signed"
-          ? 2_000_000
-          : 3_000_000;
+      : contractState === "countersign"
+        ? 0
+        : contractState === "due"
+          ? 1_000_000
+          : contractState === "signed"
+            ? 2_000_000
+            : 3_000_000;
   const paymentSort = paymentState === "owes" ? -owedCents : paymentState === "paid" ? 1 : 2;
 
   return {

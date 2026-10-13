@@ -267,6 +267,17 @@ alter table public.contracts add column if not exists signer_user_agent text;
 -- the file, compare to this) even if the file itself is later moved/copied.
 alter table public.contracts add column if not exists signed_pdf_sha256 text;
 
+-- Owen's countersignature, added after the client signs. The client-signed
+-- PDF (signed_pdf_url / signed_pdf_sha256 above) is kept untouched as its own
+-- verifiable record; the countersigned PDF is a separate file whose
+-- certificate page records the fingerprint of the exact client-signed
+-- version Owen signed.
+alter table public.contracts add column if not exists countersigned_at timestamptz;
+alter table public.contracts add column if not exists countersigner_ip text;
+alter table public.contracts add column if not exists countersigner_user_agent text;
+alter table public.contracts add column if not exists countersigned_pdf_url text;
+alter table public.contracts add column if not exists countersigned_pdf_sha256 text;
+
 create unique index if not exists contracts_sign_token_idx on public.contracts (sign_token) where sign_token is not null;
 
 -- Bucket for the final signed PDFs. Public, but every path is the

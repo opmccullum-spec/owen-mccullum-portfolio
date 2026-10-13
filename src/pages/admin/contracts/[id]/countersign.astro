@@ -1,0 +1,169 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../../../../layouts/BaseLayout.astro";
+import Header from "../../../../components/Header.astro";
+import Footer from "../../../../components/Footer.astro";
+import { requireAdmin } from "../../../../lib/auth";
+import { supabaseAdmin } from "../../../../lib/supabase/admin";
+
+const auth = await requireAdmin(Astro);
+if (auth instanceof Response) return auth;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const id = Astro.params.id ?? "";
+
+const { data: contract } = UUID_RE.test(id)
+  ? await supabaseAdmin
+      .from("contracts")
+      .select(
+        "id, title, status, signed_at, signed_pdf_url, signed_pdf_sha256, countersigned_at, countersigned_pdf_url, countersigned_pdf_sha256, prefill_fields",
+      )
+      .eq("id", id)
+      .maybeSingle()
+  : { data: null };
+
+const clientName = (contract?.prefill_fields as { clientName?: string } | null)?.clientName ?? "the client";
+const when = (iso: string | null | undefined) =>
+  iso
+    ? new Date(iso).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "America/New_York" })
+    : "";
+
+const error = Astro.url.searchParams.get("error");
+const errorMessage =
+  error === "invalid"
+    ? "Please type your full legal name and check the consent box before countersigning."
+    : error === "integrity"
+      ? "The stored client-signed copy no longer matches the fingerprint recorded when the client signed it, so it was not countersigned. Please contact support before proceeding."
+      : error === "failed"
+        ? "Something went wrong countersigning this contract. Please try again."
+        : null;
+---
+
+<BaseLayout title="Countersign contract — Owen McCullum" description="Countersign a contract the client has signed.">
+  <Header />
+  <main class="wrap page">
+    <header class="page-head reveal">
+      <p class="page-eyebrow">Admin</p>
+      {!contract ? (
+        <>
+          <h1 class="page-title">Contract not found.</h1>
+          <p class="page-lede">That link doesn't match any contract.</p>
+        </>
+      ) : contract.status === "voided" ? (
+        <>
+          <h1 class="page-title">Contract cancelled.</h1>
+          <p class="page-lede"><strong>{contract.title}</strong> was cancelled, so there's nothing to countersign.</p>
+        </>
+      ) : contract.status !== "signed" ? (
+        <>
+          <h1 class="page-title">Not signed yet.</h1>
+          <p class="page-lede">
+            <strong>{contract.title}</strong> is still waiting on {clientName}'s signature. You'll get an email with a
+            countersign link as soon as they sign.
+          </p>
+        </>
+      ) : contract.countersigned_at ? (
+        <>
+          <h1 class="page-title">Fully signed.</h1>
+          <p class="page-lede">
+            You countersigned <strong>{contract.title}</strong> on {when(contract.countersigned_at)}.
+            {contract.countersigned_pdf_url && (
+              <>
+                {" "}
+                <a href={contract.countersigned_pdf_url} target="_blank" rel="noopener">View the fully signed copy →</a>
+              </>
+            )}
+          </p>
+        </>
+      ) : (
+        <>
+          <h1 class="page-title">Countersign.</h1>
+          <p class="page-lede">
+            {clientName} signed <strong>{contract.title}</strong> on {when(contract.signed_at)}. Review their signed copy,
+            then add your signature to complete the agreement.
+          </p>
+        </>
+      )}
+    </header>
+
+    <p class="inq-note reveal" style="margin-bottom: 40px;"><a href="/admin">← Back to admin</a></p>
+
+    {contract && contract.status === "signed" && !contract.countersigned_at && (
+      <form class="inquire reveal" method="POST" action="/api/admin/contracts/countersign" novalidate>
+        <input type="hidden" name="contractId" value={contract.id} />
+        <p class="inq-eyebrow">Your signature</p>
+
+        {contract.signed_pdf_url && (
+          <p class="inq-note">
+            <a href={contract.signed_pdf_url} target="_blank" rel="noopener">Review the client-signed copy →</a>
+          </p>
+        )}
+        {contract.signed_pdf_sha256 && (
+          <p class="sig-hash" title="SHA-256 fingerprint of the client-signed copy you are countersigning">
+            Fingerprint of what you're signing (SHA-256): {contract.signed_pdf_sha256}
+          </p>
+        )}
+
+        <div class="inq-field">
+          <label for="cs-name">Type your full legal name to sign</label>
+          <input id="cs-name" name="signatureName" type="text" autocomplete="name" required />
+        </div>
+
+        <label class="cs-consent">
+          <input type="checkbox" name="consent" required />
+          <span>
+            I have reviewed the signed agreement and agree that typing my name here constitutes my legal signature.
+          </span>
+        </label>
+
+        {errorMessage && (
+          <p class="inq-feedback inq-error" role="alert">
+            {errorMessage}
+          </p>
+        )}
+
+        <button class="inq-submit" type="submit">Countersign contract</button>
+      </form>
+    )}
+
+    {errorMessage && !(contract && contract.status === "signed" && !contract.countersigned_at) && (
+      <p class="inq-feedback inq-error reveal" role="alert">
+        {errorMessage}
+      </p>
+    )}
+
+    {contract && contract.countersigned_at && contract.countersigned_pdf_sha256 && (
+      <p class="sig-hash reveal" title="SHA-256 fingerprint of the fully signed copy">
+        Fully signed copy fingerprint (SHA-256): {contract.countersigned_pdf_sha256}
+      </p>
+    )}
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .sig-hash {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    color: var(--mute);
+    overflow-wrap: anywhere;
+    max-width: 560px;
+  }
+  .cs-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--mute);
+    line-height: 1.6;
+    cursor: pointer;
+  }
+  .cs-consent input {
+    margin-top: 3px;
+  }
+</style>

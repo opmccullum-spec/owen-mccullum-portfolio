@@ -196,7 +196,15 @@ const hasGlanceItem = !!(nextSession || outstandingInvoice || pendingContract);
         ) : (
           contracts.map((contract) => (
             <p>
-              {contract.title} ({contract.status})
+              {contract.title} ({contract.status === "signed" && contract.countersigned_at ? "fully signed" : contract.status})
+              {contract.status === "signed" && (contract.countersigned_pdf_url || contract.signed_pdf_url) && (
+                <>
+                  {" "}
+                  <a href={contract.countersigned_pdf_url || contract.signed_pdf_url} target="_blank" rel="noopener">
+                    View signed copy →
+                  </a>
+                </>
+              )}
               {contract.status === "sent" && contract.signing_url && (
                 <>
                   {" "}

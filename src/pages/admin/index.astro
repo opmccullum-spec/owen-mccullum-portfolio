@@ -7,7 +7,7 @@ import Footer from "../../components/Footer.astro";
 import { requireAdmin } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase/admin";
 import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
-import { buildShootRow, money } from "../../lib/adminShoots";
+import { buildShootRow, countersignHref, money } from "../../lib/adminShoots";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -18,7 +18,7 @@ if (auth instanceof Response) return auth;
 const { data: shoots } = await supabaseAdmin
   .from("bookings")
   .select(
-    "*, profiles(email, full_name), contracts(id, title, status, signing_url, signed_pdf_url), invoices(id, status, amount_cents, hosted_invoice_url)",
+    "*, profiles(email, full_name), contracts(id, title, status, signing_url, signed_pdf_url, countersigned_at, countersigned_pdf_url), invoices(id, status, amount_cents, hosted_invoice_url)",
   )
   .order("starts_at", { ascending: true });
 
@@ -41,6 +41,7 @@ const invoiced = Astro.url.searchParams.get("invoiced");
 const emailed = Astro.url.searchParams.get("emailed") !== "0";
 const invoiceUrl = Astro.url.searchParams.get("url");
 const contracted = Astro.url.searchParams.get("contracted");
+const countersigned = Astro.url.searchParams.get("countersigned");
 const approved = Astro.url.searchParams.get("approved");
 const declined = Astro.url.searchParams.get("declined");
 const cancelled = Astro.url.searchParams.get("cancelled");
@@ -122,6 +123,11 @@ shootRows.sort(
     {contracted && (
       <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
         Contract created and sent to the client for signature.
+      </p>
+    )}
+    {countersigned && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Contract countersigned — it's now fully signed.
       </p>
     )}
     {approved && (
@@ -213,11 +219,19 @@ shootRows.sort(
                         <span>{r.contract?.title || "Contract"}</span>
                       )}
                       <span class={`at-sub${r.contractState === "overdue" ? " at-overdue" : ""}`}>
-                        {r.contractState === "signed" && "Signed"}
+                        {r.contractState === "signed" && "Fully signed"}
+                        {r.contractState === "countersign" && "Signed by client — needs your signature"}
                         {r.contractState === "due" && "Awaiting signature"}
                         {r.contractState === "overdue" &&
                           `Overdue by ${r.contractOverdueDays} day${r.contractOverdueDays === 1 ? "" : "s"}`}
                       </span>
+                      {r.contractState === "countersign" && r.contract && (
+                        <span class="at-actions">
+                          <a class="portal-signout-btn" href={countersignHref(r.contract.id)}>
+                            Countersign
+                          </a>
+                        </span>
+                      )}
                     </>
                   )}
                 </td>
@@ -274,10 +288,22 @@ shootRows.sort(
         {contracts.map((contract) => (
           <div class="contact-block">
             <p class="ck">
-              {contract.status} · {new Date(contract.created_at).toLocaleDateString()}
+              {contract.status === "signed"
+                ? contract.countersigned_at
+                  ? "fully signed"
+                  : "signed · needs your signature"
+                : contract.status}{" "}
+              · {new Date(contract.created_at).toLocaleDateString()}
             </p>
             <p class="big">{contract.title}</p>
             <p>{contract.profiles?.full_name || contract.profiles?.email}</p>
+            {contract.status === "signed" && !contract.countersigned_at && (
+              <p class="at-actions">
+                <a class="portal-signout-btn" href={countersignHref(contract.id)}>
+                  Countersign
+                </a>
+              </p>
+            )}
           </div>
         ))}
       </div>

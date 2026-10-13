@@ -86,7 +86,11 @@ export const POST: APIRoute = async ({ request, redirect }) => {
 
     if (updated) {
       try {
-        const { subject, html } = contractSignedOwnerEmail({ clientName: signatureName, title: contract.title });
+        const { subject, html } = contractSignedOwnerEmail({
+          clientName: signatureName,
+          title: contract.title,
+          countersignUrl: `${new URL(request.url).origin}/admin/contracts/${contract.id}/countersign`,
+        });
         await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html });
       } catch (err) {
         console.error("failed to email owner about signed contract:", err instanceof Error ? err.message : err);

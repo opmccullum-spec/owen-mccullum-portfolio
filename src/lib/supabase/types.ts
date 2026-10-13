@@ -44,6 +44,11 @@ export type Contract = {
   signer_ip: string | null;
   signer_user_agent: string | null;
   signed_pdf_sha256: string | null;
+  countersigned_at: string | null;
+  countersigner_ip: string | null;
+  countersigner_user_agent: string | null;
+  countersigned_pdf_url: string | null;
+  countersigned_pdf_sha256: string | null;
   created_at: string;
 };
 

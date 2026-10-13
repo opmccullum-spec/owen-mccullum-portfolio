@@ -18,7 +18,7 @@ type FieldBox = { page: number; xPct: number; yPct: number; widthPct: number; he
 
 export const CONTRACT_FIELD_BOXES: Record<string, FieldBox> = {
   clientName: { page: 1, xPct: 20.42251528631354, yPct: 21.68787852048936, widthPct: 56.61047577803683, heightPct: 2.558114071164493, fontSize: 12 },
-  clientNamePrint: { page: 5, xPct: 18.18709426429189, yPct: 59.44120264904591, widthPct: 57.13151730009463, heightPct: 1.978726059013484, fontSize: 12 },
+  clientNamePrint: { page: 5, xPct: 18.9, yPct: 59.44120264904591, widthPct: 57.13151730009463, heightPct: 1.978726059013484, fontSize: 12 },
   address: { page: 1, xPct: 17.75947437086396, yPct: 24.17559561815762, widthPct: 57.1107904085256, heightPct: 2.678279196629645, fontSize: 12 },
   email: { page: 1, xPct: 36.40212240054056, yPct: 26.96280000013314, widthPct: 32.11845641245261, heightPct: 2.558114071164485, fontSize: 12 },
   phone: { page: 1, xPct: 68.56775491598398, yPct: 26.80597372378093, widthPct: 13.50791430233077, heightPct: 2.751243408548095, fontSize: 12 },
@@ -196,33 +196,92 @@ export async function generateSignedPdf(params: {
   return pdfDoc.save();
 }
 
+// The photographer's block on page 5 is laid out exactly like the client's
+// block just below it, ~9.23% of the page height higher (measured from a
+// render of the template) — so each box is the client's, shifted up.
+const PHOTOGRAPHER_OFFSET_PCT = 9.23;
+const PHOTOGRAPHER_NAME = "Owen McCullum";
+// "PHOTOGRAPHER" is a long heading, so the large italic signature is dropped
+// a little closer to its line to keep it from touching the heading above.
+const PHOTOGRAPHER_SIGNATURE_DROP_PCT = 0.75;
+const PHOTOGRAPHER_SIGNATURE_BOX: FieldBox = {
+  ...SIGNATURE_BOX,
+  yPct: SIGNATURE_BOX.yPct - PHOTOGRAPHER_OFFSET_PCT + PHOTOGRAPHER_SIGNATURE_DROP_PCT,
+};
+const PHOTOGRAPHER_PRINT_BOX: FieldBox = {
+  ...CONTRACT_FIELD_BOXES.clientNamePrint,
+  yPct: CONTRACT_FIELD_BOXES.clientNamePrint.yPct - PHOTOGRAPHER_OFFSET_PCT,
+};
+const PHOTOGRAPHER_DATE_BOX: FieldBox = { ...SIGNED_DATE_BOX, yPct: SIGNED_DATE_BOX.yPct - PHOTOGRAPHER_OFFSET_PCT };
+
+function formatRecordTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", { dateStyle: "full", timeStyle: "long", timeZone: "America/New_York" });
+}
+
+/**
+ * Takes the client-signed PDF, stamps the photographer's typed signature,
+ * printed name and date onto the photographer signature block, and appends
+ * a second record page for the countersignature. That page includes the
+ * SHA-256 of the exact client-signed file being countersigned, so the two
+ * signatures are chained together and either file can be verified later.
+ */
+export async function countersignPdf(params: {
+  pdfBytes: Uint8Array;
+  title: string;
+  signatureName: string;
+  signedAtISO: string;
+  signerIp: string;
+  signerUserAgent: string;
+  clientSignedSha256: string;
+}): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(params.pdfBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const italicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+
+  const signaturePage = pdfDoc.getPages()[SIGNATURE_BOX.page - 1];
+  if (signaturePage) {
+    drawInBox(signaturePage, PHOTOGRAPHER_SIGNATURE_BOX, params.signatureName, italicFont);
+    drawInBox(signaturePage, PHOTOGRAPHER_PRINT_BOX, PHOTOGRAPHER_NAME, font);
+    const signedDate = new Date(params.signedAtISO).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "America/New_York",
+    });
+    drawInBox(signaturePage, PHOTOGRAPHER_DATE_BOX, signedDate, font);
+  }
+
+  appendRecordPage(pdfDoc, font, "Countersignature Record", [
+    `Document: ${params.title}`,
+    "",
+    `Countersigned by: ${params.signatureName} (Photographer)`,
+    `Countersigned at: ${formatRecordTimestamp(params.signedAtISO)}`,
+    `IP address: ${params.signerIp}`,
+    `Browser/device: ${params.signerUserAgent}`,
+    "",
+    "SHA-256 of the client-signed document that was countersigned:",
+    params.clientSignedSha256,
+    "",
+    "By typing their name and submitting this form, the photographer affirmed",
+    "their intent to electronically sign this document and agreed that their",
+    "typed name constitutes a legal signature under the U.S. ESIGN Act and",
+    "applicable state law.",
+  ]);
+
+  return pdfDoc.save();
+}
+
 function appendCertificatePage(
   pdfDoc: PDFDocument,
   font: PDFFont,
   params: { title: string; signatureName: string; email: string; signedAtISO: string; signerIp: string; signerUserAgent: string },
 ) {
-  const page = pdfDoc.addPage([612, 792]); // US Letter
-  const margin = 60;
-  let y = 792 - margin;
-  const lineHeight = 20;
-
-  const heading = "Certificate of Completion";
-  page.drawText(heading, { x: margin, y, size: 18, font });
-  y -= lineHeight * 2;
-
-  const signedAt = new Date(params.signedAtISO);
-  const timestamp = signedAt.toLocaleString("en-US", {
-    dateStyle: "full",
-    timeStyle: "long",
-    timeZone: "America/New_York",
-  });
-
-  const lines = [
+  appendRecordPage(pdfDoc, font, "Certificate of Completion", [
     `Document: ${params.title}`,
     "",
     `Signed by: ${params.signatureName}`,
     `Email: ${params.email}`,
-    `Signed at: ${timestamp}`,
+    `Signed at: ${formatRecordTimestamp(params.signedAtISO)}`,
     `IP address: ${params.signerIp}`,
     `Browser/device: ${params.signerUserAgent}`,
     "",
@@ -230,7 +289,18 @@ function appendCertificatePage(
     "intent to electronically sign this document and agreed that their typed",
     "name constitutes a legal signature under the U.S. ESIGN Act and",
     "applicable state law.",
-  ];
+  ]);
+}
+
+/** One US-Letter page with a heading and wrapped lines of text — shared by the client's certificate and the countersignature record. */
+function appendRecordPage(pdfDoc: PDFDocument, font: PDFFont, heading: string, lines: string[]) {
+  const page = pdfDoc.addPage([612, 792]);
+  const margin = 60;
+  let y = 792 - margin;
+  const lineHeight = 20;
+
+  page.drawText(heading, { x: margin, y, size: 18, font });
+  y -= lineHeight * 2;
 
   const maxWidth = 612 - margin * 2;
   for (const line of lines) {

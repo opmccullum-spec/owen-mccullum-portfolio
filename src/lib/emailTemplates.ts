@@ -205,12 +205,14 @@ export function contractRequestEmail(params: { clientName: string; title: string
   };
 }
 
-export function contractSignedOwnerEmail(params: { clientName: string; title: string }) {
+export function contractSignedOwnerEmail(params: { clientName: string; title: string; countersignUrl: string }) {
   return {
     subject: `Contract signed — ${params.title}`,
     html: wrapEmail(`
       <p>${params.clientName} just signed:</p>
       <p><strong>${params.title}</strong></p>
+      <p>It still needs your signature to be fully executed.</p>
+      <p><a href="${params.countersignUrl}">Review &amp; countersign →</a></p>
     `),
   };
 }
