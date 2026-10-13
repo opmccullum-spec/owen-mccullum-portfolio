@@ -3,6 +3,8 @@ export const prerender = false;
 import type { APIRoute } from "astro";
 import { sendEmail } from "../../lib/resend";
 import { contactInquiryOwnerEmail } from "../../lib/emailTemplates";
+import { verifyTurnstile } from "../../lib/turnstile";
+import { supabaseAdmin } from "../../lib/supabase/admin";
 
 // Replaces the old client-side Web3Forms integration, which silently
 // stopped delivering (its API returned a success response either way, so
@@ -13,7 +15,9 @@ import { contactInquiryOwnerEmail } from "../../lib/emailTemplates";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VALID_TYPES = new Set(["Session", "Assignment", "Print", "General"]);
 
-export const POST: APIRoute = async ({ request }) => {
+const MAX_INQUIRIES_PER_HOUR = 5;
+
+export const POST: APIRoute = async ({ request, clientAddress }) => {
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -40,6 +44,33 @@ export const POST: APIRoute = async ({ request }) => {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || clientAddress || null;
+
+  if (!(await verifyTurnstile(body.turnstileToken, ip))) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Please complete the security check and try again." }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // Soft per-sender throttle — a real visitor rarely sends more than a
+  // couple of inquiries in an hour. Same shape as the booking form's limit.
+  if (ip) {
+    const since = new Date(Date.now() - 60 * 60_000).toISOString();
+    const { count } = await supabaseAdmin
+      .from("contact_inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("requester_ip", ip)
+      .gte("created_at", since);
+    if ((count ?? 0) >= MAX_INQUIRIES_PER_HOUR) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Too many messages from here recently. Please email Owen directly." }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    await supabaseAdmin.from("contact_inquiries").insert({ requester_ip: ip });
   }
 
   try {

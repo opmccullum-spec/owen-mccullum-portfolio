@@ -89,6 +89,8 @@ import Footer from "../components/Footer.astro";
           <input id="bk-company" name="company" type="text" tabindex="-1" autocomplete="off" />
         </div>
 
+        <div id="book-ts"></div>
+
         <button class="inq-submit" type="submit" id="book-submit">Request this time</button>
       </form>
 
@@ -298,6 +300,7 @@ import Footer from "../components/Footer.astro";
 
 <script>
   import { calculatePrice, CATEGORY_LABELS, MIN_HOURS, MAX_HOURS, type BookingCategory } from "../lib/pricing";
+  import { mountTurnstile, type TurnstileHandle } from "../lib/turnstileClient";
 
   type Selected = { startISO: string; label: string };
   type Slot = { startISO: string; endISO: string };
@@ -341,6 +344,11 @@ import Footer from "../components/Footer.astro";
     const submitBtn = document.querySelector<HTMLButtonElement>("#book-submit")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
+
+    const turnstileSlot = document.querySelector<HTMLElement>("#book-ts")!;
+    // Mounted the first time the form is revealed, not at page load — the
+    // widget can't render properly inside a hidden element.
+    let turnstile: TurnstileHandle | null = null;
 
     let calcCategory: BookingCategory = "family";
     let calcHours = 1;
@@ -413,6 +421,7 @@ import Footer from "../components/Footer.astro";
       submitBtn.textContent = `Request this time — ${money(price.totalCents)}`;
 
       formEl.hidden = false;
+      turnstile ??= mountTurnstile(turnstileSlot);
       errorEl.hidden = true;
     }
 
@@ -544,6 +553,7 @@ import Footer from "../components/Footer.astro";
 
       const formData = new FormData(formEl);
       try {
+        const turnstileToken = (await turnstile?.getToken()) ?? null;
         const res = await fetch("/api/bookings/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -555,6 +565,7 @@ import Footer from "../components/Footer.astro";
             startISO: selected.startISO,
             category: calcCategory,
             hours: calcHours,
+            turnstileToken,
           }),
         });
         const data = await res.json();
@@ -587,12 +598,16 @@ import Footer from "../components/Footer.astro";
           showError("Too many requests from here recently — please email Owen directly for now.");
         } else if (data.error === "invalid_input") {
           showError("Please double-check your name and email address, then try again.");
+        } else if (data.error === "captcha_failed") {
+          showError("Please complete the security check and try again.");
         } else {
           showError("Something went wrong sending that request. Please try again.");
         }
       } catch {
         showError("Something went wrong sending that request. Please try again.");
       } finally {
+        // Each Turnstile token works once, so any attempt needs a fresh one.
+        turnstile?.reset();
         submitBtn.disabled = false;
       }
     });

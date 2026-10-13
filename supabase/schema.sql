@@ -277,6 +277,20 @@ insert into storage.buckets (id, name, public)
 values ('signed-contracts', 'signed-contracts', true)
 on conflict (id) do nothing;
 
+-- ── contact form send limit ─────────────────────────────────────────────
+-- One row per accepted inquiry, used only to cap how many one sender (by IP)
+-- can send per hour. Server-only: RLS on with no policies, so nothing but
+-- the service role can read or write it.
+create table if not exists public.contact_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  requester_ip text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.contact_inquiries enable row level security;
+
+create index if not exists contact_inquiries_ip_created_idx on public.contact_inquiries (requester_ip, created_at);
+
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
 -- Run this SEPARATELY, after you've logged into the portal once with your
 -- own email (that first login is what creates your profiles row):

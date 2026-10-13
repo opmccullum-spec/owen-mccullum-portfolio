@@ -8,6 +8,7 @@ import { isCalendarBusy } from "../../../lib/googleCalendar";
 import { sendEmail } from "../../../lib/resend";
 import { bookingRequestOwnerEmail, bookingRequestReceivedEmail } from "../../../lib/emailTemplates";
 import { calculatePrice, isBookingCategory, CATEGORY_LABELS } from "../../../lib/pricing";
+import { verifyTurnstile } from "../../../lib/turnstile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -52,6 +53,13 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const hours = Number.isFinite(hoursRaw) && hoursRaw > 0 ? hoursRaw : null;
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || clientAddress || null;
+
+  // Checked before anything touches the database or sends an email — the
+  // client confirmation goes to whatever address was typed in, so an
+  // unchecked bot could use this form to send mail to strangers.
+  if (!(await verifyTurnstile(get("turnstileToken"), ip))) {
+    return new Response(JSON.stringify({ ok: false, error: "captcha_failed" }), { status: 400 });
+  }
 
   try {
     const { data: settings, error: settingsErr } = await supabaseAdmin

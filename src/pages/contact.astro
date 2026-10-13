@@ -66,6 +66,8 @@ const EMAIL = "owenmcc.photo@gmail.com";
           style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0"
         />
 
+        <div class="ts-slot"></div>
+
         <button class="inq-submit" type="submit">Send inquiry</button>
         <p class="inq-note">
           Sent straight to Owen's inbox. Prefer to write directly?
@@ -104,10 +106,14 @@ const EMAIL = "owenmcc.photo@gmail.com";
 </BaseLayout>
 
 <script>
+  import { mountTurnstile } from "../lib/turnstileClient";
+
   function initInquire() {
     const form = document.querySelector<HTMLFormElement>(".inquire");
     if (!form || form.dataset.init) return;
     form.dataset.init = "1";
+
+    const turnstile = mountTurnstile(form.querySelector<HTMLElement>(".ts-slot")!);
 
     const name = form.querySelector<HTMLInputElement>("[name=name]")!;
     const email = form.querySelector<HTMLInputElement>("[name=email]")!;
@@ -170,6 +176,7 @@ const EMAIL = "owenmcc.photo@gmail.com";
       submit.textContent = "Sending…";
 
       try {
+        const turnstileToken = await turnstile.getToken();
         const res = await fetch("/api/contact", {
           method: "POST",
           headers: {
@@ -182,19 +189,22 @@ const EMAIL = "owenmcc.photo@gmail.com";
             type: typeEl.value,
             message: message.value.trim(),
             honey: honey.value,
+            turnstileToken,
           }),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success === true) {
           // Replace the form with the success note.
           form
-            .querySelectorAll(".inq-field, .inq-submit, .inq-note")
+            .querySelectorAll(".inq-field, .ts-slot, .inq-submit, .inq-note")
             .forEach((el) => ((el as HTMLElement).hidden = true));
           sent.hidden = false;
         } else {
           throw new Error(data.message || "Request failed");
         }
       } catch {
+        // Each Turnstile token works once, so a failed attempt needs a fresh one.
+        turnstile.reset();
         errorBox.hidden = false;
         submit.disabled = false;
         submit.textContent = original;

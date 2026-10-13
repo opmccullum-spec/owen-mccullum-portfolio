@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   readonly RESEND_API_KEY: string;
   readonly EMAIL_FROM: string;
   readonly OWNER_EMAIL: string;
+  readonly PUBLIC_TURNSTILE_SITE_KEY: string | undefined;
+  readonly TURNSTILE_SECRET_KEY: string | undefined;
 }
 
 interface ImportMeta {
