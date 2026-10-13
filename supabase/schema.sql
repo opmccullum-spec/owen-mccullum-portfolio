@@ -289,6 +289,11 @@ create table if not exists public.contact_inquiries (
 
 alter table public.contact_inquiries enable row level security;
 
+-- Newer Supabase projects don't auto-grant new tables to the API roles, and
+-- the service role still needs table privileges even though it skips RLS.
+-- Deliberately NOT granted to anon/authenticated: server-only.
+grant select, insert, update, delete on public.contact_inquiries to service_role;
+
 create index if not exists contact_inquiries_ip_created_idx on public.contact_inquiries (requester_ip, created_at);
 
 -- ── make yourself (Owen) an admin ──────────────────────────────────────
