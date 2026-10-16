@@ -5,6 +5,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { requireUser } from "../../lib/auth";
+import { getBusinessTimezone, inTz } from "../../lib/businessTime";
+import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
 
 const auth = await requireUser(Astro);
 if (auth instanceof Response) return auth;
@@ -29,20 +31,39 @@ function formatAmount(cents: number) {
   return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
-const BOOKING_STATUS_LABEL: Record<string, string> = {
-  pending: "Awaiting approval",
-  confirmed: "Confirmed",
-  declined: "Declined",
-  cancelled: "Cancelled",
-};
+const tz = await getBusinessTimezone();
 
 function formatSession(startsAt: string, endsAt: string) {
-  const start = new Date(startsAt);
-  const end = new Date(endsAt);
-  const dateLabel = start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-  const startLabel = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const endLabel = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${dateLabel}, ${startLabel}–${endLabel}`;
+  return `${inTz(startsAt, tz, "EEEE, MMMM d")}, ${inTz(startsAt, tz, "h:mm a")}–${inTz(endsAt, tz, "h:mm a")}`;
+}
+
+/** "In review" → "Booked" → "Completed" (or Declined / Cancelled). */
+function sessionStatus(b: { status: string; ends_at: string }): string {
+  if (b.status === "pending") return "In review";
+  if (b.status === "confirmed") return new Date(b.ends_at).getTime() < Date.now() ? "Completed" : "Booked";
+  if (b.status === "declined") return "Declined";
+  if (b.status === "cancelled") return "Cancelled";
+  return b.status;
+}
+const BOOKING_STATUS_LABEL = { pending: "In review", confirmed: "Booked", declined: "Declined", cancelled: "Cancelled" } as Record<
+  string,
+  string
+>;
+
+function invoiceStatus(status: string): { label: string; done: boolean } {
+  if (status === "paid") return { label: "Paid", done: true };
+  if (status === "void") return { label: "Cancelled", done: false };
+  return { label: "Payment due", done: false };
+}
+
+/** "Needs signing" → "Awaiting Owen's signature" → "Signed" (done, nothing left for the client). */
+function contractStatus(c: { status: string; countersigned_at: string | null }): { label: string; done: boolean } {
+  if (c.status === "sent") return { label: "Needs signing", done: false };
+  if (c.status === "signed") {
+    return c.countersigned_at ? { label: "Signed", done: true } : { label: "Awaiting Owen's signature", done: false };
+  }
+  if (c.status === "voided") return { label: "Cancelled", done: false };
+  return { label: c.status, done: false };
 }
 
 const cancelled = Astro.url.searchParams.get("cancelled");
@@ -168,89 +189,233 @@ const hasGlanceItem = !!(nextSession || outstandingInvoice || pendingContract);
       )}
     </div>
 
-    <div class="contact-grid">
-      <div class="contact-block reveal">
-        <p class="ck">Invoices</p>
-        {!invoices?.length ? (
-          <p>Nothing yet — invoices Owen sends you will show up here.</p>
-        ) : (
-          invoices.map((invoice) => (
-            <p>
-              {invoice.description} — <strong>{formatAmount(invoice.amount_cents)}</strong> ({invoice.status})
-              {invoice.status !== "paid" && invoice.hosted_invoice_url && (
-                <>
-                  {" "}
-                  <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener">
-                    Pay now →
-                  </a>
-                </>
-              )}
-            </p>
-          ))
-        )}
-      </div>
-      <div class="contact-block reveal" style="--d:80ms">
-        <p class="ck">Contracts</p>
-        {!contracts?.length ? (
-          <p>Nothing yet — contracts to review and sign will show up here.</p>
-        ) : (
-          contracts.map((contract) => (
-            <p>
-              {contract.title} (
-              {contract.status === "signed"
-                ? contract.countersigned_at
-                  ? "fully signed"
-                  : "signed — awaiting Owen's signature"
-                : contract.status}
-              )
-              {contract.status === "signed" && (contract.countersigned_pdf_url || contract.signed_pdf_url) && (
-                <>
-                  {" "}
-                  <a href={contract.countersigned_pdf_url || contract.signed_pdf_url} target="_blank" rel="noopener">
-                    View signed copy →
-                  </a>
-                </>
-              )}
-              {contract.status === "sent" && contract.signing_url && (
-                <>
-                  {" "}
-                  <a href={contract.signing_url} target="_blank" rel="noopener">
-                    Review &amp; sign →
-                  </a>
-                </>
-              )}
-            </p>
-          ))
-        )}
-      </div>
-      <div class="contact-block reveal" style="--d:160ms">
-        <p class="ck">Sessions</p>
-        {!bookings?.length ? (
-          <p>Nothing booked yet.</p>
-        ) : (
-          bookings.map((booking) => (
-            <p>
-              {formatSession(booking.starts_at, booking.ends_at)} ({BOOKING_STATUS_LABEL[booking.status] ?? booking.status})
-              {(booking.status === "pending" || booking.status === "confirmed") && (
-                <>
-                  {" "}
-                  <form
-                    method="POST"
-                    action="/api/bookings/cancel"
-                    style="display:inline;"
-                    onsubmit="return confirm('Are you sure you want to cancel? Any fees paid at this time are non-refundable.');"
-                  >
-                    <input type="hidden" name="bookingId" value={booking.id} />
-                    <button type="submit" class="portal-signout-btn">Cancel</button>
-                  </form>
-                </>
-              )}
-            </p>
-          ))
-        )}
-        <p class="inq-note" style="margin-top: 10px;"><a href="/book">Book another session →</a></p>
-      </div>
-    </div>
+    <section class="portal-section reveal">
+      <h2 class="portal-h">Sessions</h2>
+      {!bookings?.length ? (
+        <p class="portal-empty">Nothing booked yet.</p>
+      ) : (
+        <div class="at-wrap">
+          <table class="admin-table portal-table">
+            <thead>
+              <tr>
+                <th>Session</th>
+                <th>Details</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((booking) => {
+                const label = CATEGORY_LABELS[booking.category as BookingCategory];
+                const status = sessionStatus(booking);
+                const canCancel =
+                  (booking.status === "pending" || booking.status === "confirmed") &&
+                  new Date(booking.ends_at).getTime() >= now;
+                return (
+                  <tr>
+                    <td>{formatSession(booking.starts_at, booking.ends_at)}</td>
+                    <td>
+                      {label ?? "Session"}
+                      {booking.hours && (
+                        <span class="at-sub">
+                          {booking.hours} hour{booking.hours === 1 ? "" : "s"}
+                          {booking.estimated_price_cents != null && <> · est. {formatAmount(booking.estimated_price_cents)}</>}
+                          {booking.category === "printing" && <> + materials</>}
+                        </span>
+                      )}
+                      {booking.note && <span class="at-sub portal-note">{booking.note}</span>}
+                    </td>
+                    <td>
+                      <span class={`status-pill${status === "Booked" || status === "Completed" ? " is-done" : ""}`}>{status}</span>
+                    </td>
+                    <td class="portal-actions">
+                      {canCancel && (
+                        <form
+                          method="POST"
+                          action="/api/bookings/cancel"
+                          style="display:inline;"
+                          onsubmit="return confirm('Are you sure you want to cancel? Any fees paid at this time are non-refundable.');"
+                        >
+                          <input type="hidden" name="bookingId" value={booking.id} />
+                          <button type="submit" class="portal-signout-btn">Cancel</button>
+                        </form>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p class="inq-note" style="margin-top: 14px;"><a href="/book">Book another session →</a></p>
+    </section>
+
+    <section class="portal-section reveal">
+      <h2 class="portal-h">Invoices</h2>
+      {!invoices?.length ? (
+        <p class="portal-empty">Nothing yet — invoices Owen sends you will show up here.</p>
+      ) : (
+        <div class="at-wrap">
+          <table class="admin-table portal-table">
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((invoice) => {
+                const st = invoiceStatus(invoice.status);
+                return (
+                  <tr class={invoice.status === "void" ? "is-void" : undefined}>
+                    <td>
+                      {invoice.description}
+                      {invoice.due_date && invoice.status === "sent" && (
+                        <span class="at-sub">Due {inTz(`${invoice.due_date}T12:00:00Z`, "UTC", "MMM d, yyyy")}</span>
+                      )}
+                    </td>
+                    <td>{formatAmount(invoice.amount_cents)}</td>
+                    <td>
+                      <span class={`status-pill${st.done ? " is-done" : ""}`}>
+                        {st.done && <span aria-hidden="true">✓ </span>}
+                        {st.label}
+                      </span>
+                    </td>
+                    <td class="portal-actions">
+                      {invoice.status === "sent" && invoice.hosted_invoice_url && (
+                        <a class="portal-signout-btn" href={invoice.hosted_invoice_url} target="_blank" rel="noopener">
+                          Pay now
+                        </a>
+                      )}
+                      {invoice.status === "paid" && invoice.hosted_invoice_url && (
+                        <a class="portal-signout-btn" href={invoice.hosted_invoice_url} target="_blank" rel="noopener">
+                          View receipt
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+
+    <section class="portal-section reveal">
+      <h2 class="portal-h">Contracts</h2>
+      {!contracts?.length ? (
+        <p class="portal-empty">Nothing yet — contracts to review and sign will show up here.</p>
+      ) : (
+        <div class="at-wrap">
+          <table class="admin-table portal-table">
+            <thead>
+              <tr>
+                <th>Contract</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {contracts.map((contract) => {
+                const st = contractStatus(contract);
+                const copyUrl = contract.countersigned_pdf_url || contract.signed_pdf_url;
+                return (
+                  <tr class={contract.status === "voided" ? "is-void" : undefined}>
+                    <td>{contract.title}</td>
+                    <td>
+                      <span class={`status-pill${st.done ? " is-done" : ""}`}>
+                        {st.done && <span aria-hidden="true">✓ </span>}
+                        {st.label}
+                      </span>
+                      {st.done && <span class="at-sub">Nothing more needed from you</span>}
+                    </td>
+                    <td class="portal-actions">
+                      {contract.status === "sent" && contract.signing_url && (
+                        <a class="portal-signout-btn" href={contract.signing_url} target="_blank" rel="noopener">
+                          Review &amp; sign
+                        </a>
+                      )}
+                      {contract.status === "signed" && copyUrl && (
+                        <a class="portal-signout-btn" href={copyUrl} target="_blank" rel="noopener">
+                          View signed copy
+                        </a>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   </main>
   <Footer />
 </BaseLayout>
+
+<style>
+  .portal-section {
+    margin-bottom: 56px;
+  }
+  .portal-h {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin: 0 0 16px;
+  }
+  .portal-empty {
+    margin: 0;
+    color: var(--mute);
+  }
+  .portal-table th {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+  /* The shared admin table keeps cells on one line; client-facing text
+     (long invoice descriptions, notes) needs to wrap. */
+  .portal-table th,
+  .portal-table td {
+    white-space: normal;
+  }
+  .portal-table tr.is-void td {
+    color: var(--mute);
+    text-decoration: line-through;
+  }
+  .portal-table .portal-note {
+    text-transform: none;
+    letter-spacing: 0;
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .portal-actions {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .status-pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .status-pill.is-done {
+    border-color: #2f7d4f;
+    color: #2f7d4f;
+  }
+</style>

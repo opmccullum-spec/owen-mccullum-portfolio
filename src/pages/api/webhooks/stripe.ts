@@ -4,7 +4,7 @@ import type { APIRoute } from "astro";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { stripe } from "../../../lib/stripe";
 import { sendEmail } from "../../../lib/resend";
-import { invoicePaidOwnerEmail } from "../../../lib/emailTemplates";
+import { invoicePaidOwnerEmail, invoicePaidClientEmail } from "../../../lib/emailTemplates";
 
 export const POST: APIRoute = async ({ request }) => {
   const signature = request.headers.get("stripe-signature");
@@ -48,6 +48,23 @@ export const POST: APIRoute = async ({ request }) => {
           await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html });
         } catch (err) {
           console.error("failed to email owner about paid invoice:", err instanceof Error ? err.message : err);
+        }
+
+        // Confirmation + receipt for the client (replaces relying on
+        // Stripe's own receipt emails, which Owen can leave switched off).
+        try {
+          if (client?.email) {
+            const { subject, html } = invoicePaidClientEmail({
+              clientName: client.full_name || "there",
+              description: updated.description,
+              amountCents: updated.amount_cents,
+              invoiceNumber: invoice.number,
+              receiptUrl: invoice.hosted_invoice_url,
+            });
+            await sendEmail({ to: client.email, subject, html });
+          }
+        } catch (err) {
+          console.error("failed to email client their payment receipt:", err instanceof Error ? err.message : err);
         }
       }
       break;

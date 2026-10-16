@@ -104,6 +104,10 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       collection_method: "send_invoice",
       days_until_due: daysUntilDue,
       auto_advance: true,
+      // Card only. Left open, Stripe's pay page also offers Link, Amazon Pay,
+      // Cash App and Klarna — and Link sends its own, confusingly generic
+      // emails to whoever pays.
+      payment_settings: { payment_method_types: ["card"] },
     });
 
     for (const item of lineItems) {

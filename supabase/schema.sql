@@ -288,6 +288,14 @@ insert into storage.buckets (id, name, public)
 values ('signed-contracts', 'signed-contracts', true)
 on conflict (id) do nothing;
 
+-- ── admin "needed actions" board ───────────────────────────────────────
+-- photos_sent_at: set when Owen marks a shoot's photos as delivered, which
+-- clears that shoot's "send the photos" reminder. client_fields: the blanks
+-- the CLIENT fills in on the signing page (e.g. a custom delivery timeline),
+-- kept so the board can show when the photos are due.
+alter table public.bookings add column if not exists photos_sent_at timestamptz;
+alter table public.contracts add column if not exists client_fields jsonb;
+
 -- ── contact form send limit ─────────────────────────────────────────────
 -- One row per accepted inquiry, used only to cap how many one sender (by IP)
 -- can send per hour. Server-only: RLS on with no policies, so nothing but

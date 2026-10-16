@@ -1,8 +1,8 @@
 ---
-// A highlighted "blank" in the contract signing page — either shows the
-// value the admin already filled in, or (for optional fields left blank)
-// a muted placeholder, still highlighted so it reads as a blank in the
-// document rather than being mistaken for missing text.
+// A value the admin already filled in on the contract signing page, shown as
+// plain text in the agreement (only the blanks the CLIENT fills in — the
+// .doc-fill-input fields — are highlighted). Optional fields the admin left
+// blank show a muted placeholder instead.
 interface Props {
   value?: string | null;
   placeholder?: string;

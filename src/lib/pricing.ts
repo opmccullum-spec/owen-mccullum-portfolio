@@ -7,13 +7,14 @@
  * in the browser and running on the (UTC) server.
  */
 
-export type BookingCategory = "family" | "events" | "proposals" | "portraits";
+export type BookingCategory = "portraits" | "family" | "events" | "proposals" | "printing";
 
 export const CATEGORY_LABELS: Record<BookingCategory, string> = {
   family: "Family",
   events: "Events",
   proposals: "Proposals",
   portraits: "Portraits & Headshots",
+  printing: "Printing",
 };
 
 // First-hour rate, in cents.
@@ -22,7 +23,15 @@ const FIRST_HOUR_RATE_CENTS: Record<BookingCategory, number> = {
   events: 30000,
   proposals: 25000,
   portraits: 15000,
+  printing: 4000,
 };
+
+// Printing is Owen's time at a flat hourly rate — no discount on later hours,
+// no holiday surcharge — plus materials, which vary by project and so are
+// NOT in the estimate (quoted separately).
+const FLAT_HOURLY_CATEGORIES: ReadonlySet<BookingCategory> = new Set(["printing"]);
+export const MATERIALS_NOTE =
+  "Printing sessions are $40 per hour for Owen's time, plus the cost of materials (paper, ink, framing, etc.). Materials vary by project, so Owen will confirm that cost with you separately.";
 
 const ADDITIONAL_HOUR_DISCOUNT = 0.2; // each hour after the first is 20% off the first hour's rate
 const HOLIDAY_SURCHARGE = 0.2; // +20% on the total when the shoot falls on a federal holiday
@@ -96,12 +105,26 @@ export interface PriceBreakdown {
   isHoliday: boolean;
   holidaySurchargeCents: number;
   totalCents: number;
+  /** True when the real price will be higher: the estimate excludes materials. */
+  plusMaterials: boolean;
 }
 
 /** `dateOnly` is a plain "YYYY-MM-DD" string — see the module doc for why. */
 export function calculatePrice(category: BookingCategory, hours: number, dateOnly: string): PriceBreakdown {
   const clampedHours = Math.min(MAX_HOURS, Math.max(MIN_HOURS, Math.round(hours)));
   const firstHour = FIRST_HOUR_RATE_CENTS[category];
+  if (FLAT_HOURLY_CATEGORIES.has(category)) {
+    const flatCents = firstHour * clampedHours;
+    return {
+      category,
+      hours: clampedHours,
+      baseCents: flatCents,
+      isHoliday: false,
+      holidaySurchargeCents: 0,
+      totalCents: flatCents,
+      plusMaterials: true,
+    };
+  }
   const additionalHourRate = Math.round(firstHour * (1 - ADDITIONAL_HOUR_DISCOUNT));
   const baseCents = firstHour + (clampedHours - 1) * additionalHourRate;
   const holiday = isFederalHoliday(dateOnly);
@@ -113,5 +136,6 @@ export function calculatePrice(category: BookingCategory, hours: number, dateOnl
     isHoliday: holiday,
     holidaySurchargeCents: totalCents - baseCents,
     totalCents,
+    plusMaterials: false,
   };
 }

@@ -77,6 +77,7 @@ export const POST: APIRoute = async ({ request, redirect }) => {
         signer_user_agent: signerUserAgent,
         signed_pdf_url: pub.publicUrl,
         signed_pdf_sha256: signedPdfSha256,
+        client_fields: clientFields,
       })
       .eq("id", contract.id)
       .eq("status", "sent")

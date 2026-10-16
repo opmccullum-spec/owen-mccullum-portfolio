@@ -1025,15 +1025,11 @@ html.js .hero-strip {
   color: var(--mute);
 }
 
-/* Contract signing page: the full agreement text (via .doc-b above) with
-   every blank from the paper form highlighted so it's obvious what's been
-   filled in and what the client can still fill in themselves. */
+/* Contract signing page: the full agreement text (via .doc-b above). Values
+   the admin already filled in read as plain text; only the blanks the
+   client fills in themselves (.doc-fill-input) are highlighted. */
 .doc-fill {
-  display: inline-block;
-  background: #fbe58a;
   color: var(--ink);
-  padding: 1px 7px;
-  border-radius: 3px;
   font-weight: 500;
 }
 .doc-fill-empty {

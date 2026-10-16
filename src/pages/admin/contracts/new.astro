@@ -28,6 +28,20 @@ function shootLabel(b: any) {
 const prefillEmail = Astro.url.searchParams.get("email") ?? "";
 const prefillName = Astro.url.searchParams.get("clientName") ?? "";
 
+// Arriving from the admin message board (?bookingId=…) preselects that shoot
+// (the script below then fills in its date and times) and suggests the
+// session fee from the booking's estimate.
+const prefillBookingId = Astro.url.searchParams.get("bookingId") ?? "";
+let prefillFee = "";
+if (/^[0-9a-f-]{36}$/i.test(prefillBookingId)) {
+  const { data: bk } = await supabaseAdmin
+    .from("bookings")
+    .select("estimated_price_cents")
+    .eq("id", prefillBookingId)
+    .maybeSingle();
+  if (bk?.estimated_price_cents) prefillFee = (bk.estimated_price_cents / 100).toFixed(2);
+}
+
 const error = Astro.url.searchParams.get("error");
 const errorMessage = error === "create_failed" ? "Something went wrong creating that contract. Please try again." : null;
 ---
@@ -63,6 +77,7 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
             {shootOptions.map((b) => (
               <option
                 value={b.id}
+                selected={b.id === prefillBookingId}
                 data-email={b.profiles?.email ?? ""}
                 data-name={b.profiles?.full_name ?? ""}
                 data-starts-at={b.starts_at}
@@ -117,7 +132,7 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
 
       <div class="inq-field">
         <label for="ct-fee">Total session fee (USD)</label>
-        <input id="ct-fee" name="totalFee" type="number" min="1" step="0.01" placeholder="500.00" required />
+        <input id="ct-fee" name="totalFee" type="number" min="1" step="0.01" placeholder="500.00" required value={prefillFee} />
         <span class="inq-note" aria-live="polite" id="fee-breakdown" style="min-height: 13px;"></span>
       </div>
 
@@ -167,7 +182,7 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
     // the shoot's actual date/start/end time so they don't need to be
     // retyped (previously only email/name were prefilled, so it was easy to
     // assume the time carried over too and leave it blank by mistake).
-    shoot.addEventListener("change", () => {
+    const applyShoot = () => {
       const opt = shoot.selectedOptions[0];
       const em = opt?.dataset.email || "";
       if (em) {
@@ -185,7 +200,10 @@ const errorMessage = error === "create_failed" ? "Something went wrong creating 
         if (startTime) startTime.value = toTimeInputValue(startsAt);
       }
       if (endsAt && endTime) endTime.value = toTimeInputValue(endsAt);
-    });
+    };
+    shoot.addEventListener("change", applyShoot);
+    // A shoot preselected by the server (arriving from the message board).
+    if (shoot.value) applyShoot();
   }
 
   function initFeeBreakdown() {

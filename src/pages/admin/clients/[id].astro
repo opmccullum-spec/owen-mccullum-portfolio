@@ -6,6 +6,7 @@ import Header from "../../../components/Header.astro";
 import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
+import { getBusinessTimezone, inTz } from "../../../lib/businessTime";
 import {
   isPastShoot,
   daysSinceShoot,
@@ -19,6 +20,7 @@ import {
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
 
+const tz = await getBusinessTimezone();
 const clientId = Astro.params.id;
 const { data: client } = await supabaseAdmin.from("profiles").select("*").eq("id", clientId).maybeSingle();
 if (!client || client.is_admin) return Astro.redirect("/admin");
@@ -62,6 +64,7 @@ const rows = (shoots ?? []).map((b) => {
 rows.sort((a, b) => Number(a.isPast) - Number(b.isPast) || a.start.getTime() - b.start.getTime());
 
 const invoiceCancelled = Astro.url.searchParams.get("invoice_cancelled");
+const invoiceCancelNotified = Astro.url.searchParams.get("notified") !== "0";
 const contractCancelled = Astro.url.searchParams.get("contract_cancelled");
 const cancelError = Astro.url.searchParams.get("error");
 const cancelErrorMessage =
@@ -93,7 +96,9 @@ const cancelErrorMessage =
 
     {invoiceCancelled && (
       <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
-        Invoice cancelled.
+        {invoiceCancelNotified
+          ? "Invoice cancelled, and the client was emailed which invoice it was."
+          : "Invoice cancelled, but the email to the client couldn't be sent."}
       </p>
     )}
     {contractCancelled && (
@@ -125,11 +130,24 @@ const cancelErrorMessage =
             {rows.map(({ booking: b, start, isPast, days }) => (
               <tr class={isPast ? "is-past" : undefined}>
                 <td>
-                  {start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                  {inTz(start, tz, "EEE, MMM d, yyyy")}
                   <span class="at-sub">
-                    {start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    {inTz(start, tz, "h:mm a")}
                     {b.status !== "confirmed" && <> · {b.status}</>}
                   </span>
+                  {b.status === "confirmed" && !isPast && (
+                    <span class="at-actions">
+                      <form
+                        method="POST"
+                        action="/api/admin/bookings/cancel"
+                        style="display:inline;"
+                        onsubmit="return confirm('Cancel this session? The client will be emailed and the calendar event removed.');"
+                      >
+                        <input type="hidden" name="bookingId" value={b.id} />
+                        <button type="submit" class="portal-signout-btn">Cancel session</button>
+                      </form>
+                    </span>
+                  )}
                 </td>
                 <td>
                   {!b.contracts?.length ? (

@@ -39,11 +39,11 @@ export function bookingRequestOwnerEmail(params: {
   endISO: string;
   timezone: string;
   adminUrl: string;
-  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean } | null;
+  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean; plusMaterials?: boolean } | null;
 }) {
   const when = formatSessionTime(params.startISO, params.endISO, params.timezone);
   const estimateLine = params.estimate
-    ? `<p>Estimate: ${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}</p>`
+    ? `<p>Estimate: ${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}${params.estimate.plusMaterials ? " plus the cost of materials, which Owen will confirm with you" : ""}</p>`
     : "";
   return {
     subject: `New booking request — ${params.name}`,
@@ -62,11 +62,11 @@ export function bookingRequestReceivedEmail(params: {
   startISO: string;
   endISO: string;
   timezone: string;
-  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean } | null;
+  estimate?: { categoryLabel: string; hours: number; totalCents: number; isHoliday: boolean; plusMaterials?: boolean } | null;
 }) {
   const when = formatSessionTime(params.startISO, params.endISO, params.timezone);
   const estimateLine = params.estimate
-    ? `<p>${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}</p>`
+    ? `<p>${params.estimate.categoryLabel}, ${params.estimate.hours} hour${params.estimate.hours === 1 ? "" : "s"} — $${(params.estimate.totalCents / 100).toFixed(2)}${params.estimate.isHoliday ? " (includes holiday rate)" : ""}${params.estimate.plusMaterials ? " plus the cost of materials, which Owen will confirm with you" : ""}</p>`
     : "";
   return {
     subject: "We've got your booking request",
@@ -201,6 +201,75 @@ export function contractRequestEmail(params: { clientName: string; title: string
       <p>Hi ${params.clientName},</p>
       <p>Owen sent over a contract for your session — please review and sign it here:</p>
       <p><a href="${params.signUrl}">${params.title} →</a></p>
+    `),
+  };
+}
+
+const usd = (cents: number) => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+/** Tells a client an invoice was cancelled, listing exactly which one — so a still-open payment link doesn't confuse them. */
+export function invoiceCancelledClientEmail(params: {
+  clientName: string;
+  description: string;
+  amountCents: number;
+  invoiceNumber?: string | null;
+  dueDate?: string | null;
+}) {
+  const due = params.dueDate
+    ? new Date(`${params.dueDate}T12:00:00Z`).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : null;
+  return {
+    subject: `Invoice cancelled — ${params.description}`,
+    html: wrapEmail(`
+      <p>Hi ${params.clientName},</p>
+      <p>The following invoice has been cancelled, so there's nothing for you to pay on it:</p>
+      <p>
+        <strong>${params.description}</strong><br>
+        Amount: ${usd(params.amountCents)}<br>
+        ${params.invoiceNumber ? `Invoice number: ${params.invoiceNumber}<br>` : ""}
+        ${due ? `Was due: ${due}<br>` : ""}
+      </p>
+      <p>If you already have a payment link from this invoice, please don't use it. If you have any questions, just reply to this email.</p>
+    `),
+  };
+}
+
+/** Confirmation + receipt for a client who just paid an invoice. */
+export function invoicePaidClientEmail(params: {
+  clientName: string;
+  description: string;
+  amountCents: number;
+  invoiceNumber?: string | null;
+  receiptUrl?: string | null;
+}) {
+  return {
+    subject: `Payment received — ${params.description}`,
+    html: wrapEmail(`
+      <p>Hi ${params.clientName},</p>
+      <p>Thank you — your payment has been received.</p>
+      <p>
+        <strong>${params.description}</strong><br>
+        Amount paid: ${usd(params.amountCents)}<br>
+        ${params.invoiceNumber ? `Invoice number: ${params.invoiceNumber}<br>` : ""}
+      </p>
+      ${params.receiptUrl ? `<p><a href="${params.receiptUrl}">View your receipt →</a></p>` : ""}
+    `),
+  };
+}
+
+/** Owner's own copy once a contract is signed by both parties. */
+export function contractFullySignedOwnerEmail(params: { clientName: string; title: string; viewUrl: string }) {
+  return {
+    subject: `Fully signed — ${params.title}`,
+    html: wrapEmail(`
+      <p>You and ${params.clientName} have both signed:</p>
+      <p><strong>${params.title}</strong></p>
+      <p>The fully signed copy is attached, and you can open it any time from <a href="${params.viewUrl}">this link</a> or from your admin.</p>
     `),
   };
 }

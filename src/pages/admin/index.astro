@@ -6,8 +6,9 @@ import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import { requireAdmin } from "../../lib/auth";
 import { supabaseAdmin } from "../../lib/supabase/admin";
-import { CATEGORY_LABELS, type BookingCategory } from "../../lib/pricing";
 import { buildShootRow, countersignHref, money } from "../../lib/adminShoots";
+import { buildAdminActions } from "../../lib/adminActions";
+import { getBusinessTimezone, inTz } from "../../lib/businessTime";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -17,25 +18,18 @@ if (auth instanceof Response) return auth;
 // invoices that were tied to that specific shoot pulled in alongside.
 const { data: shoots } = await supabaseAdmin
   .from("bookings")
-  .select(
-    "*, profiles(email, full_name), contracts(id, title, status, signing_url, signed_pdf_url, countersigned_at, countersigned_pdf_url), invoices(id, status, amount_cents, hosted_invoice_url)",
-  )
+  .select("*, profiles(email, full_name), contracts(*), invoices(id, status, amount_cents, hosted_invoice_url)")
   .order("starts_at", { ascending: true });
 
-const { data: invoices } = await supabaseAdmin
-  .from("invoices")
-  .select("*, profiles(email, full_name)")
-  .order("created_at", { ascending: false });
-
-const { data: contracts } = await supabaseAdmin
+// Contracts the client has signed that Owen still needs to countersign —
+// including any not tied to a specific shoot.
+const { data: needsCountersign } = await supabaseAdmin
   .from("contracts")
-  .select("*, profiles(email, full_name)")
-  .order("created_at", { ascending: false });
+  .select("id, title, signed_at, profiles(email, full_name)")
+  .eq("status", "signed")
+  .is("countersigned_at", null);
 
-const { data: bookings } = await supabaseAdmin
-  .from("bookings")
-  .select("*, profiles(email, full_name)")
-  .order("starts_at", { ascending: true });
+const tz = await getBusinessTimezone();
 
 const invoiced = Astro.url.searchParams.get("invoiced");
 const emailed = Astro.url.searchParams.get("emailed") !== "0";
@@ -48,11 +42,14 @@ const declined = Astro.url.searchParams.get("declined");
 const cancelled = Astro.url.searchParams.get("cancelled");
 const invoiceCancelled = Astro.url.searchParams.get("invoice_cancelled");
 const contractCancelled = Astro.url.searchParams.get("contract_cancelled");
+const photosSent = Astro.url.searchParams.get("photos_sent");
 const bookingError = Astro.url.searchParams.get("error");
 const bookingErrorMessage =
   bookingError === "slot_conflict"
     ? "That time is no longer free on your calendar — decline this request instead."
-    : bookingError === "approve_failed" || bookingError === "decline_failed" || bookingError === "cancel_failed"
+    : bookingError === "photos_failed"
+      ? "Couldn't mark those photos as sent. Please try again."
+      : bookingError === "approve_failed" || bookingError === "decline_failed" || bookingError === "cancel_failed"
       ? "Something went wrong with that booking action. Please try again."
       : bookingError === "invoice_not_cancellable" || bookingError === "contract_not_cancellable"
         ? "That can't be cancelled anymore — it's already been paid, signed, or cancelled."
@@ -60,22 +57,12 @@ const bookingErrorMessage =
           ? "Something went wrong cancelling that. Please try again."
           : null;
 
-function formatAmount(cents: number) {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
-
-function formatSession(startsAt: string, endsAt: string) {
-  const start = new Date(startsAt);
-  const end = new Date(endsAt);
-  const dateLabel = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  const startLabel = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const endLabel = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${dateLabel}, ${startLabel}–${endLabel}`;
-}
-
 // One view-model per shoot for the Clients table (shared with the
 // per-client detail page's logic — see src/lib/adminShoots.ts).
 const shootRows = (shoots ?? []).map((b: any) => buildShootRow(b));
+
+// The "needed actions" message board above the table.
+const actions = buildAdminActions({ bookings: shoots ?? [], needsCountersign: needsCountersign ?? [], tz });
 
 // Default order: upcoming shoots first (soonest at top), then past shoots.
 shootRows.sort(
@@ -90,11 +77,6 @@ shootRows.sort(
       <div>
         <p class="page-eyebrow">Admin</p>
         <h1 class="page-title">Clients</h1>
-        <p class="page-lede">
-          Everyone who has logged into the portal, plus every invoice,
-          contract, and booking request sent so far. Click a client's name
-          for their full history and to manage their invoices and contracts.
-        </p>
       </div>
       <form method="POST" action="/api/auth/signout" class="portal-signout">
         <input type="hidden" name="redirectTo" value="/admin/login" />
@@ -133,6 +115,11 @@ shootRows.sort(
           : "Contract countersigned — it's now fully signed, and a copy was emailed to the client."}
       </p>
     )}
+    {photosSent && (
+      <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
+        Marked as sent — that reminder is cleared.
+      </p>
+    )}
     {approved && (
       <p class="inq-feedback reveal" role="status" style="margin-bottom: 40px;">
         Booking approved and added to your calendar.
@@ -164,6 +151,50 @@ shootRows.sort(
       </p>
     )}
 
+    <section class="board reveal" aria-label="Needed actions">
+      <h2 class="board-title">
+        Needed actions
+        {actions.length > 0 && <span class="board-count">{actions.length}</span>}
+      </h2>
+      {!actions.length ? (
+        <p class="board-empty">You're all caught up — nothing needs your attention right now.</p>
+      ) : (
+        <ul class="board-list">
+          {actions.map((a) => (
+            <li class={`board-item${a.tone === "overdue" ? " is-overdue" : ""}`}>
+              <div class="board-text">
+                <p class="board-item-title">{a.title}</p>
+                <p class="board-item-detail">{a.detail}</p>
+              </div>
+              <div class="board-actions">
+                {a.buttons.map((btn) =>
+                  btn.href ? (
+                    <a class="portal-signout-btn" href={btn.href}>
+                      {btn.label}
+                    </a>
+                  ) : (
+                    <form
+                      method="POST"
+                      action={btn.post!.action}
+                      style="display:inline;"
+                      onsubmit={btn.confirm ? `return confirm(${JSON.stringify(btn.confirm)});` : undefined}
+                    >
+                      {Object.entries(btn.post!.fields).map(([name, value]) => (
+                        <input type="hidden" name={name} value={value} />
+                      ))}
+                      <button type="submit" class="portal-signout-btn">
+                        {btn.label}
+                      </button>
+                    </form>
+                  ),
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+
     {!shootRows.length ? (
       <p class="reveal">No shoots booked yet.</p>
     ) : (
@@ -192,14 +223,9 @@ shootRows.sort(
                 data-sort-payment={String(r.paymentSort)}
               >
                 <td>
-                  {r.start.toLocaleDateString(undefined, {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {inTz(r.start, tz, "EEE, MMM d, yyyy")}
                   <span class="at-sub">
-                    {r.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                    {inTz(r.start, tz, "h:mm a")}
                     {r.status !== "confirmed" && <> · {r.status}</>}
                   </span>
                 </td>
@@ -266,123 +292,89 @@ shootRows.sort(
         </table>
       </div>
     )}
-
-    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Invoices</h2>
-
-    {!invoices?.length ? (
-      <p class="reveal">No invoices sent yet.</p>
-    ) : (
-      <div class="contact-grid reveal">
-        {invoices.map((invoice) => (
-          <div class="contact-block">
-            <p class="ck">
-              {invoice.status} · {new Date(invoice.created_at).toLocaleDateString()}
-            </p>
-            <p class="big">{formatAmount(invoice.amount_cents)}</p>
-            <p>
-              {invoice.description}
-              <br />
-              {invoice.profiles?.full_name || invoice.profiles?.email}
-            </p>
-          </div>
-        ))}
-      </div>
-    )}
-
-    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Contracts</h2>
-
-    {!contracts?.length ? (
-      <p class="reveal">No contracts sent yet.</p>
-    ) : (
-      <div class="contact-grid reveal">
-        {contracts.map((contract) => (
-          <div class="contact-block">
-            <p class="ck">
-              {contract.status === "signed"
-                ? contract.countersigned_at
-                  ? "fully signed"
-                  : "signed · needs your signature"
-                : contract.status}{" "}
-              · {new Date(contract.created_at).toLocaleDateString()}
-            </p>
-            <p class="big">{contract.title}</p>
-            <p>{contract.profiles?.full_name || contract.profiles?.email}</p>
-            {contract.status === "signed" && (
-              <p class="at-actions">
-                {(contract.countersigned_pdf_url || contract.signed_pdf_url) && (
-                  <a
-                    class="portal-signout-btn"
-                    href={contract.countersigned_pdf_url || contract.signed_pdf_url}
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    View signed document
-                  </a>
-                )}
-                {!contract.countersigned_at && (
-                  <a class="portal-signout-btn" href={countersignHref(contract.id)}>
-                    Countersign
-                  </a>
-                )}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    )}
-
-    <h2 class="page-title reveal" style="font-size: clamp(24px, 3vw, 36px); margin-top: 72px;">Bookings</h2>
-
-    {!bookings?.length ? (
-      <p class="reveal">No booking requests yet.</p>
-    ) : (
-      <div class="contact-grid reveal">
-        {bookings.map((booking) => (
-          <div class="contact-block">
-            <p class="ck">{booking.profiles?.full_name || booking.profiles?.email}</p>
-            <p class="inq-note" style="margin-bottom: 14px;">
-              {booking.status} · {formatSession(booking.starts_at, booking.ends_at)}
-            </p>
-            {booking.category && booking.hours && booking.estimated_price_cents != null && (
-              <p class="inq-note">
-                Estimate: {CATEGORY_LABELS[booking.category as BookingCategory] ?? booking.category} · {booking.hours}{" "}
-                hour{booking.hours === 1 ? "" : "s"} · {formatAmount(booking.estimated_price_cents)}
-              </p>
-            )}
-            {booking.note && <p>{booking.note}</p>}
-            {booking.status === "pending" && (
-              <p class="inq-note" style="margin-top: 10px;">
-                <form method="POST" action="/api/admin/bookings/approve" style="display:inline;">
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <button type="submit" class="portal-signout-btn">Approve</button>
-                </form>
-                {" · "}
-                <form method="POST" action="/api/admin/bookings/decline" style="display:inline;">
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <button type="submit" class="portal-signout-btn">Decline</button>
-                </form>
-              </p>
-            )}
-            {booking.status === "confirmed" && (
-              <p class="inq-note" style="margin-top: 10px;">
-                <form
-                  method="POST"
-                  action="/api/admin/bookings/cancel"
-                  style="display:inline;"
-                  onsubmit="return confirm('Are you sure?');"
-                >
-                  <input type="hidden" name="bookingId" value={booking.id} />
-                  <button type="submit" class="portal-signout-btn">Cancel</button>
-                </form>
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    )}
   </main>
   <Footer />
 </BaseLayout>
+
+<style>
+  .board {
+    margin-bottom: 56px;
+    max-width: 880px;
+  }
+  .board-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .board-count {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 999px;
+    padding: 1px 9px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+  .board-empty {
+    margin: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--mute);
+  }
+  .board-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .board-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 20px;
+  }
+  .board-item + .board-item {
+    border-top: 1px solid var(--line);
+  }
+  .board-item.is-overdue {
+    background: rgba(179, 38, 30, 0.06);
+  }
+  .board-item.is-overdue .board-item-title {
+    color: #b3261e;
+  }
+  .board-item-title {
+    margin: 0 0 4px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .board-item-detail {
+    margin: 0;
+    font-size: 14px;
+    color: var(--mute);
+    line-height: 1.5;
+  }
+  .board-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  @media (max-width: 640px) {
+    .board-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
 
 <script>
   // Click any column header to sort the shoots table by that column; click

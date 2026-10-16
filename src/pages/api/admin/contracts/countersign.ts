@@ -6,7 +6,7 @@ import { requireAdminApi } from "../../../../lib/auth";
 import { supabaseAdmin } from "../../../../lib/supabase/admin";
 import { countersignPdf } from "../../../../lib/contractPdf";
 import { sendEmail } from "../../../../lib/resend";
-import { contractFullySignedClientEmail } from "../../../../lib/emailTemplates";
+import { contractFullySignedClientEmail, contractFullySignedOwnerEmail } from "../../../../lib/emailTemplates";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -112,6 +112,20 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       }
     } catch (err) {
       console.error("failed to email client their fully signed copy:", err instanceof Error ? err.message : err);
+    }
+
+    // Owen gets his own copy of the fully signed agreement too.
+    try {
+      const fields = contract.prefill_fields as { clientName?: string } | null;
+      const { subject, html } = contractFullySignedOwnerEmail({
+        clientName: fields?.clientName || contract.profiles?.full_name || "the client",
+        title: contract.title,
+        viewUrl: pub.publicUrl,
+      });
+      const filename = `${contract.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "signed-agreement"}-signed.pdf`;
+      await sendEmail({ to: import.meta.env.OWNER_EMAIL, subject, html, attachments: [{ filename, content: finalBytes }] });
+    } catch (err) {
+      console.error("failed to email owner the fully signed copy:", err instanceof Error ? err.message : err);
     }
 
     return redirect(`/admin?countersigned=1${emailed ? "" : "&emailed=0"}`);

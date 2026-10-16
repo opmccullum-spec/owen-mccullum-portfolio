@@ -4,6 +4,7 @@ export const prerender = false;
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { MATERIALS_NOTE } from "../lib/pricing";
 ---
 
 <BaseLayout title="Book a Session — Owen McCullum" description="Request a session date and time with Owen McCullum.">
@@ -19,10 +20,11 @@ import Footer from "../components/Footer.astro";
       <p class="inq-eyebrow">Type of session:</p>
 
       <div class="calc-cats" role="group" aria-label="Session type">
-        <button type="button" class="calc-cat active" data-category="family">Family</button>
+        <button type="button" class="calc-cat active" data-category="portraits">Portraits &amp; Headshots</button>
+        <button type="button" class="calc-cat" data-category="family">Family</button>
         <button type="button" class="calc-cat" data-category="events">Events</button>
         <button type="button" class="calc-cat" data-category="proposals">Proposals</button>
-        <button type="button" class="calc-cat" data-category="portraits">Portraits &amp; Headshots</button>
+        <button type="button" class="calc-cat" data-category="printing">Printing</button>
       </div>
 
       <p class="inq-eyebrow calc-label">Date:</p>
@@ -36,9 +38,6 @@ import Footer from "../components/Footer.astro";
         <span id="calc-hours-value">1</span>
         <button type="button" class="calc-step" id="calc-hours-plus" aria-label="Increase hours">+</button>
       </div>
-
-      <p class="inq-eyebrow calc-label">Estimated cost:</p>
-      <p class="book-price" id="calc-price">—</p>
     </section>
 
     <div id="book-app" class="reveal">
@@ -50,17 +49,22 @@ import Footer from "../components/Footer.astro";
         </div>
       </div>
 
+      <!-- The one and only cost display: sits under the time picker, shows a
+           dash until a date is chosen, and the summary of the picked time
+           appears beneath it once a time is selected. -->
+      <div id="book-cost">
+        <p class="inq-eyebrow">Estimated cost:</p>
+        <p class="book-price" id="calc-price">—</p>
+        <p class="inq-note" id="book-print-note" hidden>{MATERIALS_NOTE}</p>
+        <p class="inq-eyebrow book-summary" id="book-selected-summary" hidden></p>
+      </div>
+
       <!-- A sibling of the picker/form, not nested inside either — so it's
            visible whether it fires while picking a time (e.g. availability
            failed to load) or while filling out/submitting the form below. -->
       <p class="inq-feedback inq-error" id="book-error" role="alert" hidden></p>
 
       <form id="book-form" class="inquire" hidden novalidate>
-        <div>
-          <p class="inq-eyebrow" id="book-selected-summary">Selected time</p>
-          <p class="book-price" id="book-price"></p>
-        </div>
-
         <div class="inq-field">
           <label for="bk-name">Your name</label>
           <input id="bk-name" name="name" type="text" placeholder="Type name here" required />
@@ -276,6 +280,16 @@ import Footer from "../components/Footer.astro";
     opacity: 0.3;
     cursor: default;
   }
+  #book-cost {
+    margin-top: 32px;
+  }
+  #book-cost .book-price {
+    margin-top: 8px;
+  }
+  .book-summary {
+    margin-top: 14px;
+    line-height: 1.6;
+  }
   .book-price {
     font-family: var(--display);
     font-weight: 500;
@@ -340,7 +354,8 @@ import Footer from "../components/Footer.astro";
     const timeNoteEl = document.querySelector<HTMLElement>("#time-slot-note")!;
     const formEl = document.querySelector<HTMLFormElement>("#book-form")!;
     const summaryEl = document.querySelector<HTMLElement>("#book-selected-summary")!;
-    const priceEl = document.querySelector<HTMLElement>("#book-price")!;
+    const costBlockEl = document.querySelector<HTMLElement>("#book-cost")!;
+    const printNoteEl = document.querySelector<HTMLElement>("#book-print-note")!;
     const submitBtn = document.querySelector<HTMLButtonElement>("#book-submit")!;
     const errorEl = document.querySelector<HTMLElement>("#book-error")!;
     const confirmationEl = document.querySelector<HTMLElement>("#book-confirmation")!;
@@ -350,7 +365,13 @@ import Footer from "../components/Footer.astro";
     // widget can't render properly inside a hidden element.
     let turnstile: TurnstileHandle | null = null;
 
-    let calcCategory: BookingCategory = "family";
+    let calcCategory: BookingCategory = "portraits";
+    // Deep links like /book?type=printing (from the Prints page) preselect a type.
+    const typeParam = new URLSearchParams(window.location.search).get("type");
+    if (typeParam && typeParam in CATEGORY_LABELS) {
+      calcCategory = typeParam as BookingCategory;
+      catButtons.forEach((b) => b.classList.toggle("active", b.dataset.category === calcCategory));
+    }
     let calcHours = 1;
     let selected: Selected | null = null;
     // Every open slot for the current hours, across the whole booking
@@ -375,6 +396,7 @@ import Footer from "../components/Footer.astro";
     // and hours both start pre-selected) and the one that can change the
     // total via the holiday surcharge.
     function updateCalcPrice() {
+      printNoteEl.hidden = calcCategory !== "printing";
       if (!dateInput.value) {
         calcPriceEl.textContent = "—";
         return;
@@ -387,6 +409,14 @@ import Footer from "../components/Footer.astro";
           Object.assign(document.createElement("span"), {
             className: "holiday-note",
             textContent: "Includes a 20% holiday rate",
+          }),
+        );
+      }
+      if (price.plusMaterials) {
+        calcPriceEl.append(
+          Object.assign(document.createElement("span"), {
+            className: "holiday-note",
+            textContent: "Plus the cost of materials (varies)",
           }),
         );
       }
@@ -407,17 +437,7 @@ import Footer from "../components/Footer.astro";
       const label = `${dateLabel} for ${calcHours} ${hourWord} starting at ${timeLabel}`;
       selected = { startISO, label };
       summaryEl.textContent = `Requesting ${CATEGORY_LABELS[calcCategory]}, ${label}.`;
-
-      priceEl.textContent = "";
-      priceEl.append(money(price.totalCents));
-      if (price.isHoliday) {
-        priceEl.append(
-          Object.assign(document.createElement("span"), {
-            className: "holiday-note",
-            textContent: "Includes a 20% holiday rate",
-          }),
-        );
-      }
+      summaryEl.hidden = false;
       submitBtn.textContent = `Request this time — ${money(price.totalCents)}`;
 
       formEl.hidden = false;
@@ -481,6 +501,7 @@ import Footer from "../components/Footer.astro";
       } else if (selected) {
         selected = null;
         formEl.hidden = true;
+        summaryEl.hidden = true;
       }
       refreshIfTimeSelected();
     }
@@ -573,6 +594,7 @@ import Footer from "../components/Footer.astro";
         if (data.ok) {
           formEl.hidden = true;
           pickerEl.hidden = true;
+          costBlockEl.hidden = true;
           const email = String(formData.get("email"));
           confirmationEl.textContent = "";
           confirmationEl.append(
@@ -591,6 +613,7 @@ import Footer from "../components/Footer.astro";
         if (data.error === "slot_taken") {
           showError("That time was just taken by someone else — please pick another.");
           formEl.hidden = true;
+          summaryEl.hidden = true;
           selected = null;
           pickerEl.hidden = false;
           loadSlotsForHours(); // refresh so the now-taken time drops off the list

@@ -7,6 +7,7 @@ import Footer from "../../../components/Footer.astro";
 import { requireAdmin } from "../../../lib/auth";
 import { supabaseAdmin } from "../../../lib/supabase/admin";
 import { stripe } from "../../../lib/stripe";
+import { CATEGORY_LABELS, type BookingCategory } from "../../../lib/pricing";
 
 const auth = await requireAdmin(Astro);
 if (auth instanceof Response) return auth;
@@ -40,6 +41,29 @@ let prefillBookingId = "";
 let prefillItems: { description: string; amount: string }[] = [{ description: "", amount: "" }];
 let effectiveVoidInvoiceId: string | null = null;
 let voidInvoiceMissing = false;
+
+// Arriving from the admin message board (?bookingId=…) preselects that shoot
+// and starts a retainer invoice (20% of the session estimate, matching the
+// contract's retainer).
+const bookingIdParam = Astro.url.searchParams.get("bookingId");
+if (!voidInvoiceIdParam && bookingIdParam && /^[0-9a-f-]{36}$/i.test(bookingIdParam)) {
+  const { data: bk } = await supabaseAdmin
+    .from("bookings")
+    .select("id, category, estimated_price_cents, profiles(email)")
+    .eq("id", bookingIdParam)
+    .maybeSingle();
+  if (bk) {
+    prefillBookingId = bk.id;
+    prefillEmail = (bk.profiles as any)?.email ?? prefillEmail;
+    const label = CATEGORY_LABELS[bk.category as BookingCategory];
+    prefillItems = [
+      {
+        description: `Retainer (20%)${label ? ` — ${label} session` : ""}`,
+        amount: bk.estimated_price_cents ? ((bk.estimated_price_cents * 0.2) / 100).toFixed(2) : "",
+      },
+    ];
+  }
+}
 
 if (voidInvoiceIdParam) {
   const { data: oldInvoice } = await supabaseAdmin

@@ -49,6 +49,7 @@ export type Contract = {
   countersigner_user_agent: string | null;
   countersigned_pdf_url: string | null;
   countersigned_pdf_sha256: string | null;
+  client_fields: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -63,6 +64,7 @@ export type Booking = {
   status: BookingStatus;
   note: string | null;
   requester_ip: string | null;
+  photos_sent_at: string | null;
   created_at: string;
 };
 

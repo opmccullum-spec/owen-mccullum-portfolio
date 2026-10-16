@@ -146,6 +146,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
               hours: estimate.hours,
               totalCents: estimate.totalCents,
               isHoliday: estimate.isHoliday,
+              plusMaterials: estimate.plusMaterials,
             }
           : null,
       });
@@ -166,6 +167,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
               hours: estimate.hours,
               totalCents: estimate.totalCents,
               isHoliday: estimate.isHoliday,
+              plusMaterials: estimate.plusMaterials,
             }
           : null,
       });
